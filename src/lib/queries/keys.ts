@@ -1,0 +1,51 @@
+/** Central query-key factory so invalidation stays consistent across features. */
+export const qk = {
+  me: ["me"] as const,
+  org: ["org"] as const,
+  profiles: ["profiles"] as const,
+  teams: ["teams"] as const,
+  teamMembers: (teamId?: string) => ["team-members", teamId ?? "all"] as const,
+  projects: ["projects"] as const,
+  project: (id: string) => ["project", id] as const,
+  projectMembers: (id: string) => ["project-members", id] as const,
+  projectAccess: (id: string) => ["project-access", id] as const,
+  projectStats: ["project-stats"] as const,
+  projectStatusUpdates: (id: string) => ["project-status-updates", id] as const,
+  favorites: ["favorites"] as const,
+  sections: (projectId: string) => ["sections", projectId] as const,
+
+  /** Every task list lives under ["tasks", ...] so optimistic patches can find them. */
+  tasks: ["tasks"] as const,
+  projectTasks: (projectId: string) => ["tasks", "project", projectId] as const,
+  myTasks: (userId: string) => ["tasks", "mine", userId] as const,
+  subtasks: (parentId: string) => ["tasks", "subtasks", parentId] as const,
+  tasksInRange: (key: string) => ["tasks", "range", key] as const,
+  task: (id: string) => ["task", id] as const,
+  canEditTask: (id: string) => ["task-can-edit", id] as const,
+  canCommentTask: (id: string) => ["task-can-comment", id] as const,
+  myProjectIds: (userId: string) => ["my-project-ids", userId] as const,
+  allMyProjectIds: ["my-project-ids"] as const,
+
+  comments: (taskId: string) => ["comments", taskId] as const,
+  activity: (taskId: string) => ["activity", taskId] as const,
+  attachments: (taskId: string) => ["attachments", taskId] as const,
+  followers: (taskId: string) => ["followers", taskId] as const,
+  dependencies: (taskId: string) => ["dependencies", taskId] as const,
+  likes: (taskId: string) => ["likes", taskId] as const,
+  taskTags: (taskId: string) => ["task-tags", taskId] as const,
+  tags: ["tags"] as const,
+
+  customFields: (projectId: string) => ["custom-fields", projectId] as const,
+  fieldValues: (projectId: string) => ["field-values", projectId] as const,
+  taskFieldValues: (taskId: string) => ["task-field-values", taskId] as const,
+  rules: (projectId: string) => ["rules", projectId] as const,
+
+  notifications: ["notifications"] as const,
+  unreadCount: ["notifications", "unread"] as const,
+
+  goals: ["goals"] as const,
+  goal: (id: string) => ["goal", id] as const,
+  portfolios: ["portfolios"] as const,
+  portfolio: (id: string) => ["portfolio", id] as const,
+  invitations: ["invitations"] as const,
+};

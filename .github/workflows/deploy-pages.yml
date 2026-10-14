@@ -1,0 +1,58 @@
+name: Deploy to GitHub Pages
+
+# Builds the static site and publishes it with GitHub Pages.
+# Set these in Settings → Secrets and variables → Actions → Variables:
+#   SUPABASE_URL              e.g. https://abcd1234.supabase.co
+#   SUPABASE_PUBLISHABLE_KEY  the project's publishable (public) key
+#   BASE_PATH  (optional)     defaults to /<repo-name>; set to "/" for a custom domain
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Check configuration
+        run: |
+          if [ -z "${{ vars.SUPABASE_URL }}" ] || [ -z "${{ vars.SUPABASE_PUBLISHABLE_KEY }}" ]; then
+            echo "::error::Set the SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY repository variables (see README)."
+            exit 1
+          fi
+      - run: npm ci
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_BASE_PATH: ${{ vars.BASE_PATH == '/' && '' || vars.BASE_PATH || format('/{0}', github.event.repository.name) }}
+      - run: touch out/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

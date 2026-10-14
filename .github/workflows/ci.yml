@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Lint, typecheck, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+
+  backend:
+    name: Database, functions & email tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start local Supabase
+        run: supabase start -x vector,logflare,imgproxy,studio
+      - name: Write .env.local for the test scripts
+        run: node scripts/ci-env.mjs
+      - name: Database security tests
+        run: npm run test:db
+      - name: Seed demo data
+        run: npm run db:reset && npm run seed:dev
+      - name: Serve functions with a mock email provider
+        run: |
+          cp supabase/functions/.env.test.example supabase/functions/.env.test
+          supabase functions serve --env-file supabase/functions/.env.test > functions.log 2>&1 &
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://127.0.0.1:54321/functions/v1/notifications || true)
+            [ "$code" = "401" ] && break
+            sleep 2
+          done
+      - name: Edge Function tests
+        run: npm run test:functions
+      - name: Email notification tests
+        run: npm run test:emails
+      - name: Function logs
+        if: failure()
+        run: cat functions.log
