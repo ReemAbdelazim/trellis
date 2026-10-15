@@ -4,8 +4,8 @@ import { useSyncExternalStore } from "react";
 
 export type Theme = "light" | "dark" | "system";
 
-const THEME_KEY = "seeds-theme";
-const THEME_EVENT = "seeds-theme-change";
+const THEME_KEY = "trellis-theme";
+const THEME_EVENT = "trellis-theme-change";
 
 /** Inline script for <head>: applies the saved theme before first paint. */
 export const THEME_BOOT_SCRIPT = `try{var t=localStorage.getItem('${THEME_KEY}');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}`;

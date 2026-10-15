@@ -8,7 +8,7 @@ import type { TaskItem } from "@/lib/queries/tasks";
 import { cn } from "@/lib/utils";
 
 /** MIME type used when dragging an unscheduled task onto the timeline grid. */
-export const TASK_DRAG_TYPE = "application/x-seeds-task";
+export const TASK_DRAG_TYPE = "application/x-trellis-task";
 
 export function UnscheduledTray({
   tasks,

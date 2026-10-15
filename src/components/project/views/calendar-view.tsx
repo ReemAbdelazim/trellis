@@ -20,7 +20,7 @@ export function ProjectCalendarView({ projectId }: { projectId: string }) {
   const canEdit = useCanEditProject(projectId);
   const update = useUpdateTask();
   const create = useCreateTask();
-  const [showCompleted, setShowCompleted] = useLocalFlag("seeds:calendar:show-completed", true);
+  const [showCompleted, setShowCompleted] = useLocalFlag("trellis:calendar:show-completed", true);
 
   useRealtime({ table: "tasks", filter: `project_id=eq.${projectId}`, invalidate: [qk.projectTasks(projectId)] });
 

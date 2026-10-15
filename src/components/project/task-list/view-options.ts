@@ -39,7 +39,7 @@ export const SORT_LABEL: Record<SortKey, string> = {
   created: "Creation date",
 };
 
-const storageKey = (projectId: string) => `seeds:view-options:${projectId}`;
+const storageKey = (projectId: string) => `trellis:view-options:${projectId}`;
 
 function parse(raw: string | null): ViewOptions {
   if (!raw) return DEFAULT_VIEW_OPTIONS;

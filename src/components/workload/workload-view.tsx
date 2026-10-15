@@ -23,10 +23,10 @@ const RANGE_KEY = ["tasks", "range"] as const;
 export function WorkloadView() {
   const isGuest = useIsGuest();
   const [anchor, setAnchor] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
-  const [weeks, setWeeks] = useLocalNumber("seeds-workload-weeks", 2, 2, 4);
-  const [effort, setEffort] = useLocalFlag("seeds-workload-effort");
-  const [capTasks, setCapTasks] = useLocalNumber("seeds-workload-cap-tasks", 5, 1, 100);
-  const [capHours, setCapHours] = useLocalNumber("seeds-workload-cap-hours", 8, 1, 24);
+  const [weeks, setWeeks] = useLocalNumber("trellis-workload-weeks", 2, 2, 4);
+  const [effort, setEffort] = useLocalFlag("trellis-workload-effort");
+  const [capTasks, setCapTasks] = useLocalNumber("trellis-workload-cap-tasks", 5, 1, 100);
+  const [capHours, setCapHours] = useLocalNumber("trellis-workload-cap-hours", 8, 1, 24);
   const [scope, setScope] = useState("everyone");
 
   const span = weeks === 4 ? 4 : 2;

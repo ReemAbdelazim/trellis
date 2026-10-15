@@ -11,7 +11,7 @@ import { useLocalFlag } from "@/lib/use-local-storage";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileNav, setMobileNav] = useState(false);
-  const [collapsed, setCollapsed] = useLocalFlag("seeds-sidebar-collapsed");
+  const [collapsed, setCollapsed] = useLocalFlag("trellis-sidebar-collapsed");
   const [searchOpen, setSearchOpen] = useState(false);
   const pathname = usePathname();
 

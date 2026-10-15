@@ -2,7 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 
-const EVENT = "seeds-local-storage";
+const EVENT = "trellis-local-storage";
 
 /** Re-renders on changes from this tab (our event) and other tabs (`storage`). */
 function subscribe(onChange: () => void) {
