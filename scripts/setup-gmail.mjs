@@ -1,18 +1,47 @@
 // One-time Gmail authorisation for the email sender account.
 //
-//   GMAIL_CLIENT_ID=... GMAIL_CLIENT_SECRET=... npm run setup:gmail
+//   npm run setup:gmail -- <client_secret.json> --from "Trellis <tasks@yourorg.org>" [--app-url <site>]
 //
-// Opens Google's consent screen; sign in as the sender (e.g. tasks@yourorg.org)
-// and allow "Send email on your behalf". Prints the refresh token and the
-// `supabase secrets set` command to store it. See docs/SELF_HOSTING.md, step 6.
+// <client_secret.json> is the file downloaded for your Google Cloud "Desktop app"
+// OAuth client. Opens Google's consent screen: sign in as the sender and allow
+// "Send email on your behalf". The client, refresh token and sender are then
+// stored as Supabase function secrets on the linked project (never printed).
+// See docs/SELF_HOSTING.md, step 5.
 import { createServer } from "node:http";
-import { exec } from "node:child_process";
+import { exec, spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { parseArgs } from "node:util";
 
-const clientId = process.env.GMAIL_CLIENT_ID;
-const clientSecret = process.env.GMAIL_CLIENT_SECRET;
-if (!clientId || !clientSecret) {
-  console.error("Set GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET (from your Google Cloud 'Desktop app' OAuth client).");
+const { values: opts, positionals } = parseArgs({
+  allowPositionals: true,
+  options: { from: { type: "string" }, "app-url": { type: "string" }, "project-ref": { type: "string" } },
+});
+const usage = 'Usage: npm run setup:gmail -- <client_secret.json> --from "Trellis <tasks@yourorg.org>" [--app-url <site>]';
+if (!positionals[0] || !opts.from) {
+  console.error(usage);
   process.exit(1);
+}
+const file = JSON.parse(readFileSync(positionals[0], "utf8"));
+const { client_id: clientId, client_secret: clientSecret } = file.installed ?? file.web ?? {};
+if (!clientId || !clientSecret) {
+  console.error("That file has no OAuth client. Download the JSON of a 'Desktop app' client from Google Cloud.");
+  process.exit(1);
+}
+const sender = /<([^>]+)>/.exec(opts.from)?.[1] ?? opts.from;
+
+/** Stores secrets via the Supabase CLI using a temporary env file, so values never reach argv or the screen. */
+function storeSecrets(secrets) {
+  const dir = mkdtempSync(join(tmpdir(), "trellis-"));
+  const envFile = join(dir, "secrets.env");
+  try {
+    writeFileSync(envFile, Object.entries(secrets).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join("\n"), { mode: 0o600 });
+    const ref = opts["project-ref"] ? ` --project-ref ${opts["project-ref"]}` : "";
+    return spawnSync(`npx supabase secrets set --env-file "${envFile}"${ref}`, { shell: true, stdio: "inherit" }).status === 0;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 const server = createServer(async (req, res) => {
@@ -42,18 +71,21 @@ const server = createServer(async (req, res) => {
   const tokens = await tokenRes.json();
   if (!tokens.refresh_token) {
     res.end("Google didn't return a refresh token. Check the terminal.");
-    console.error("No refresh token returned:", tokens);
+    console.error(`No refresh token returned: ${tokens.error ?? "unknown error"}`);
     return shutdown(1);
   }
   res.end("Done! Gmail sending is authorised. You can close this tab and return to the terminal.");
 
-  console.log("\nAuthorised. Store these as Supabase function secrets (replace the sender address):\n");
-  console.log(
-    `npx supabase secrets set GMAIL_CLIENT_ID=${clientId} GMAIL_CLIENT_SECRET=${clientSecret} ` +
-      `GMAIL_REFRESH_TOKEN=${tokens.refresh_token} EMAIL_FROM="Trellis <tasks@yourorg.org>"\n`,
-  );
-  console.log("EMAIL_FROM must be the account you just signed in with (or one of its Gmail 'Send mail as' aliases).");
-  shutdown(0);
+  console.log(`\nAuthorised. Storing the Gmail secrets in Supabase (sender: ${opts.from})…`);
+  const ok = storeSecrets({
+    GMAIL_CLIENT_ID: clientId,
+    GMAIL_CLIENT_SECRET: clientSecret,
+    GMAIL_REFRESH_TOKEN: tokens.refresh_token,
+    EMAIL_FROM: opts.from,
+    ...(opts["app-url"] ? { APP_URL: opts["app-url"] } : {}),
+  });
+  console.log(ok ? "Done. Email sending is configured." : "Storing the secrets failed; run `npx supabase link` first, then try again.");
+  shutdown(ok ? 0 : 1);
 });
 
 function redirectUri() {
@@ -74,8 +106,9 @@ server.listen(0, "127.0.0.1", () => {
     scope: "https://www.googleapis.com/auth/gmail.send",
     access_type: "offline",
     prompt: "consent",
+    login_hint: sender,
   }).toString();
-  console.log("Opening Google sign-in. If the browser doesn't open, visit:\n\n" + auth + "\n");
+  console.log(`Opening Google sign-in. Sign in as ${sender}. If the browser doesn't open, visit:\n\n${auth}\n`);
   const opener = process.platform === "win32" ? `start "" "${auth}"` : process.platform === "darwin" ? `open "${auth}"` : `xdg-open "${auth}"`;
   exec(opener);
 });

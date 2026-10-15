@@ -88,14 +88,13 @@ password resets and email confirmations.
    "Trellis mailer") *in your Workspace organization*.
    - **APIs & Services → Library**: enable the **Gmail API**.
    - **OAuth consent screen**: user type **Internal**, so the authorization never expires.
-   - **Credentials → Create credentials → OAuth client ID → Desktop app.**
-2. **Authorize the sender** by signing in as the sending account when the browser opens:
+   - **Credentials → Create credentials → OAuth client ID → Desktop app**, then **Download JSON**.
+2. **Authorize the sender**: run this, and sign in as the sending account when the browser opens:
    ```bash
-   GMAIL_CLIENT_ID=... GMAIL_CLIENT_SECRET=... npm run setup:gmail
+   npm run setup:gmail -- path/to/client_secret.json --from "Trellis <tasks@yourorg.org>" --app-url <site>
    ```
-   It prints a `npx supabase secrets set ...` command. Set `EMAIL_FROM` to that account (e.g.
-   `"Trellis <tasks@yourorg.org>"`), add `APP_URL=<site>`, and run the command. These secrets
-   live only in Supabase, never in GitHub.
+   It stores the Gmail client, the authorization and the sender as Supabase function secrets on
+   the linked project, without printing them. They live only in Supabase, never in GitHub.
 3. **Account emails (password reset, confirm email).** In Supabase → **Authentication → Hooks →
    Send Email**, choose **HTTPS**, set the URL to `https://<ref>.supabase.co/functions/v1/auth-email`,
    and **Generate secret**. Store that secret for the function:
@@ -106,7 +105,7 @@ password resets and email confirmations.
    Connect email delivery**, then **Send test email to me**.
 
 To change the sender later (e.g. from your own address to `tasks@yourorg.org`), run
-`npm run setup:gmail` again as the new account and update `GMAIL_REFRESH_TOKEN` and `EMAIL_FROM`.
+`npm run setup:gmail` again with the new `--from` and sign in as that account.
 
 ## 6. Attachments on Cloudflare R2 (optional, recommended)
 
