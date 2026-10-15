@@ -2,18 +2,18 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { CheckSquare, FolderPlus, LogOut, Menu as MenuIcon, Monitor, Moon, PanelLeft, Plus, Search, Settings, Shield, Sun, Target, UserPlus } from "lucide-react";
+import { CheckSquare, FolderPlus, LogOut, Menu as MenuIcon, PanelLeft, Plus, Search, Settings, Shield, Target, UserPlus, UserRound } from "lucide-react";
 import { useMe } from "@/lib/queries/me";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { Kbd } from "@/components/ui/misc";
-import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
+import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
 import { CreateProjectDialog } from "@/components/project/create-project-dialog";
 import { QuickAddTaskDialog } from "@/components/task/quick-add-dialog";
 import { InviteDialog } from "@/components/shell/invite-dialog";
 import { useRouter } from "next/navigation";
-import { applyTheme } from "@/lib/theme";
 import { signOut } from "@/lib/auth";
+import { routes } from "@/lib/routes";
 
 export function Topbar({
   onOpenNav,
@@ -84,32 +84,28 @@ export function Topbar({
             <Avatar profile={me} size="md" />
           </button>
         </MenuTrigger>
-        <MenuContent align="end" className="w-60">
-          <div className="px-2 py-2">
-            <div className="truncate text-sm font-medium">{me.full_name}</div>
-            <div className="truncate text-xs text-faint">{me.email}</div>
-            <div className="mt-1 text-[11px] text-muted capitalize">{me.role}</div>
-          </div>
+        <MenuContent align="end" className="w-64">
+          <MenuItem asChild className="h-auto gap-3 py-2.5">
+            <Link href={routes.settingsTab("profile")}>
+              <Avatar profile={me} size="lg" />
+              <div className="min-w-0">
+                <div className="truncate text-sm font-medium">{me.full_name}</div>
+                <div className="truncate text-xs text-faint">{me.email}</div>
+              </div>
+            </Link>
+          </MenuItem>
           <MenuSeparator />
+          <MenuItem icon={<UserRound size={15} />} asChild>
+            <Link href={routes.settingsTab("profile")}>Profile</Link>
+          </MenuItem>
           <MenuItem icon={<Settings size={15} />} asChild>
-            <Link href="/settings">Profile & notifications</Link>
+            <Link href={routes.settings}>Settings</Link>
           </MenuItem>
           {me.role === "admin" && (
             <MenuItem icon={<Shield size={15} />} asChild>
-              <Link href="/admin">Admin console</Link>
+              <Link href={routes.admin}>Admin console</Link>
             </MenuItem>
           )}
-          <MenuSeparator />
-          <MenuLabel>Theme</MenuLabel>
-          <MenuItem icon={<Sun size={15} />} onSelect={() => applyTheme("light")}>
-            Light
-          </MenuItem>
-          <MenuItem icon={<Moon size={15} />} onSelect={() => applyTheme("dark")}>
-            Dark
-          </MenuItem>
-          <MenuItem icon={<Monitor size={15} />} onSelect={() => applyTheme("system")}>
-            System
-          </MenuItem>
           <MenuSeparator />
           <MenuItem icon={<LogOut size={15} />} onSelect={() => signOut()}>
             Sign out

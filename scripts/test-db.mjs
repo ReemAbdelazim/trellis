@@ -73,6 +73,24 @@ const { error: promote } = await ca.from("profiles").update({ role: "admin" }).e
 check("admin can promote a member", !promote, promote?.message);
 await ca.from("profiles").update({ role: "member" }).eq("id", m2.user.id);
 
+console.log("\nProfile photos");
+const photo = new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], { type: "image/jpeg" });
+const { error: ownPhoto } = await cm1.storage.from("avatars").upload(`${m1.user.id}/${run}.jpg`, photo, { contentType: "image/jpeg" });
+check("member can upload their own photo", !ownPhoto, ownPhoto?.message);
+const { error: otherPhoto } = await cm1.storage.from("avatars").upload(`${m2.user.id}/${run}.jpg`, photo, { contentType: "image/jpeg" });
+check("member cannot upload into someone else's photos", !!otherPhoto);
+const passwordOnly = anonClient(); // signed in, but hasn't entered the authenticator code
+await passwordOnly.auth.signInWithPassword({ email: M1, password: PASSWORD });
+const { error: aal1Photo } = await passwordOnly.storage
+  .from("avatars")
+  .upload(`${m1.user.id}/aal1-${run}.jpg`, photo, { contentType: "image/jpeg" });
+check("photo upload needs two-factor", !!aal1Photo && (await passwordOnly.auth.getSession()).data.session !== null);
+const uploadedUrl = cm1.storage.from("avatars").getPublicUrl(`${m1.user.id}/${run}.jpg`).data.publicUrl;
+await cm1.from("profiles").update({ avatar_url: uploadedUrl }).eq("id", m1.user.id);
+await admin.auth.admin.updateUserById(m1.user.id, { user_metadata: { picture: "https://example.com/google.jpg" } });
+const { data: m1photo } = await admin.from("profiles").select("avatar_url").eq("id", m1.user.id).single();
+check("signing in again keeps an uploaded photo", m1photo.avatar_url === uploadedUrl, m1photo.avatar_url);
+
 const { data: guestSeesPeople } = await cg.from("profiles").select("id");
 check("guest sees only people they share projects with (just self now)", guestSeesPeople?.length === 1, guestSeesPeople?.length);
 

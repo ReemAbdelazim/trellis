@@ -1,5 +1,6 @@
 "use client";
 
+import { cloneElement, isValidElement } from "react";
 import { DropdownMenu as M } from "radix-ui";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,11 +27,24 @@ export function MenuItem({
   className,
   icon,
   danger,
+  asChild,
   children,
   ...props
 }: React.ComponentProps<typeof M.Item> & { icon?: React.ReactNode; danger?: boolean }) {
+  const iconEl = icon && <span className="flex w-4 justify-center text-muted">{icon}</span>;
+  // With asChild (e.g. a <Link>), the icon goes inside that single child element.
+  const content =
+    asChild && isValidElement<{ children?: React.ReactNode }>(children)
+      ? cloneElement(children, undefined, iconEl, children.props.children)
+      : (
+        <>
+          {iconEl}
+          {children}
+        </>
+      );
   return (
     <M.Item
+      asChild={asChild}
       className={cn(
         "flex h-8 cursor-pointer items-center gap-2 rounded-md px-2 outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-surface-2",
         danger && "text-danger",
@@ -38,8 +52,7 @@ export function MenuItem({
       )}
       {...props}
     >
-      {icon && <span className="flex w-4 justify-center text-muted">{icon}</span>}
-      {children}
+      {content}
     </M.Item>
   );
 }

@@ -111,25 +111,6 @@ export function EmailTab() {
           </Button>
         </div>
       </SettingsCard>
-
-      <SettingsCard title="Setup guide">
-        <ol className="list-decimal space-y-2.5 py-3 pl-5 text-sm text-muted marker:text-faint">
-          <li>
-            Emails are sent through Gmail from one Google Workspace account (about 2,000 a day). Create a Desktop OAuth
-            client with the Gmail API enabled, then run <Code>npm run setup:gmail</Code> and sign in as the sender.
-          </li>
-          <li>
-            Store the printed secrets in Supabase (never in GitHub), plus the site address:
-            <pre className="mt-1.5 overflow-x-auto rounded-md bg-surface-2 p-2 text-[12px] text-text">
-              npx supabase secrets set APP_URL=https://you.github.io/trellis
-            </pre>
-          </li>
-          <li>
-            Click <b className="text-text">Connect email delivery</b>, then <b className="text-text">Send test email to me</b>.
-          </li>
-          <li>People can turn emails off in Profile &amp; notifications.</li>
-        </ol>
-      </SettingsCard>
     </div>
   );
 }

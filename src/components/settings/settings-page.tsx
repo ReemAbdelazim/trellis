@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { LogOut, Monitor, Moon, Sun } from "lucide-react";
+import { Camera, LogOut, Monitor, Moon, Sun } from "lucide-react";
 import { useMe } from "@/lib/queries/me";
-import { useProfile, useUpdateMyProfile } from "@/lib/queries/people";
+import { isUploadedPhoto, useProfile, useSetMyPhoto, useUpdateMyProfile } from "@/lib/queries/people";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
@@ -15,6 +16,8 @@ import { SecurityCard } from "./security-card";
 import type { Profile } from "@/types/models";
 import { applyTheme, useTheme, type Theme } from "@/lib/theme";
 import { signOut } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/client";
+import { routes, type SettingsTab } from "@/lib/routes";
 
 const ROLE_HINT: Record<Profile["role"], string> = {
   admin: "Admin — manages people and workspace settings",
@@ -22,44 +25,74 @@ const ROLE_HINT: Record<Profile["role"], string> = {
   guest: "Guest — sees only projects and tasks shared with you",
 };
 
+const TABS = [
+  { id: "profile", label: "Profile" },
+  { id: "notifications", label: "Notifications" },
+  { id: "account", label: "Account" },
+  { id: "display", label: "Display" },
+] as const satisfies { id: SettingsTab; label: string }[];
+
 export function SettingsPage() {
   const me = useMe();
   // Prefer the fresh copy from the profiles cache; the context copy is from page load.
   const profile = useProfile(me.id) ?? me;
+  const params = useSearchParams();
+  const router = useRouter();
+  const tab = TABS.find((t) => t.id === params.get("tab"))?.id ?? "profile";
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-5 px-4 py-6 sm:px-6">
-      <div>
-        <h1 className="text-xl font-semibold">Profile &amp; notifications</h1>
-        <p className="text-sm text-muted">How you appear to teammates and how Trellis reaches you.</p>
-      </div>
-      <ProfileCard key={`${profile.full_name}|${profile.title ?? ""}`} profile={profile} />
-      <NotificationsCard profile={profile} />
-      <SecurityCard email={profile.email} />
-      <AppearanceCard />
-      <SettingsCard title="Session">
-        <div className="flex items-center justify-between gap-4 py-3">
-          <p className="text-sm text-muted">Sign out of Trellis on this device.</p>
-          <Button onClick={() => signOut()}>
-            <LogOut size={14} /> Sign out
-          </Button>
-        </div>
-      </SettingsCard>
+      <h1 className="text-xl font-semibold">Settings</h1>
+      <nav role="tablist" aria-label="Settings" className="flex gap-1 overflow-x-auto border-b border-border">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.id}
+            onClick={() => router.replace(routes.settingsTab(t.id), { scroll: false })}
+            className={cn(
+              "-mb-px shrink-0 border-b-2 px-3 py-2 text-sm",
+              tab === t.id ? "border-accent font-medium text-text" : "border-transparent text-muted hover:text-text",
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </nav>
+      {tab === "profile" && <ProfileCard key={`${profile.full_name}|${profile.title ?? ""}`} profile={profile} />}
+      {tab === "notifications" && <NotificationsCard profile={profile} />}
+      {tab === "account" && (
+        <>
+          <SecurityCard email={profile.email} />
+          <SessionsCard />
+        </>
+      )}
+      {tab === "display" && <AppearanceCard />}
     </div>
   );
 }
 
+/** "Mary Ann Smith" → ["Mary Ann", "Smith"]. */
+function splitName(full: string): [string, string] {
+  const parts = full.trim().split(/\s+/).filter(Boolean);
+  return parts.length < 2 ? [parts[0] ?? "", ""] : [parts.slice(0, -1).join(" "), parts[parts.length - 1]];
+}
+
 function ProfileCard({ profile }: { profile: Profile }) {
   const update = useUpdateMyProfile();
-  const [name, setName] = useState(profile.full_name);
+  const [initialFirst, initialLast] = splitName(profile.full_name);
+  const [first, setFirst] = useState(initialFirst);
+  const [last, setLast] = useState(initialLast);
   const [title, setTitle] = useState(profile.title ?? "");
-  const dirty = name.trim() !== profile.full_name || title.trim() !== (profile.title ?? "");
+  const fullName = `${first.trim()} ${last.trim()}`.trim();
+  const dirty = fullName !== profile.full_name || title.trim() !== (profile.title ?? "");
 
   const save = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!fullName) return;
     update.mutate(
-      { id: profile.id, full_name: name.trim(), title: title.trim() || null },
+      { id: profile.id, full_name: fullName, title: title.trim() || null },
       {
         onSuccess: () => toast.success("Profile saved"),
         onError: (err) => toast.error(errorMessage(err)),
@@ -70,17 +103,30 @@ function ProfileCard({ profile }: { profile: Profile }) {
   return (
     <SettingsCard title="Profile">
       <div className="flex flex-col gap-5 py-4 sm:flex-row">
-        <div className="flex shrink-0 flex-col items-center gap-2 sm:w-36">
-          <Avatar profile={profile} size="xl" />
-          <p className="text-center text-[11px] leading-snug text-faint">
-            Your photo comes from your Google account. Change it there and it updates the next time you
-            sign in.
-          </p>
-        </div>
+        <PhotoEditor profile={profile} />
         <form onSubmit={save} className="min-w-0 flex-1 space-y-3">
-          <div>
-            <Label htmlFor="profile-name">Full name</Label>
-            <Input id="profile-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} required />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="profile-first">First name</Label>
+              <Input
+                id="profile-first"
+                value={first}
+                onChange={(e) => setFirst(e.target.value)}
+                maxLength={60}
+                autoComplete="given-name"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="profile-last">Last name</Label>
+              <Input
+                id="profile-last"
+                value={last}
+                onChange={(e) => setLast(e.target.value)}
+                maxLength={60}
+                autoComplete="family-name"
+              />
+            </div>
           </div>
           <div>
             <Label htmlFor="profile-title">Job title</Label>
@@ -101,12 +147,87 @@ function ProfileCard({ profile }: { profile: Profile }) {
               <Pill className="bg-accent-soft text-accent capitalize">{profile.role}</Pill>
               <span>{ROLE_HINT[profile.role]}</span>
             </div>
-            <Button type="submit" variant="primary" disabled={!dirty || !name.trim() || update.isPending}>
+            <Button type="submit" variant="primary" disabled={!dirty || !fullName || update.isPending}>
               {update.isPending && <Spinner size={14} className="text-current" />}
               Save changes
             </Button>
           </div>
         </form>
+      </div>
+    </SettingsCard>
+  );
+}
+
+function PhotoEditor({ profile }: { profile: Profile }) {
+  const setPhoto = useSetMyPhoto();
+  const input = useRef<HTMLInputElement>(null);
+  const pick = () => input.current?.click();
+
+  const change = (file: File | null) =>
+    setPhoto.mutate(
+      { id: profile.id, file },
+      {
+        onSuccess: () => toast.success(file ? "Photo updated" : "Photo removed"),
+        onError: (err) => toast.error(errorMessage(err)),
+      },
+    );
+
+  return (
+    <div className="flex shrink-0 flex-col items-center gap-1.5 sm:w-36">
+      <button type="button" onClick={pick} disabled={setPhoto.isPending} aria-label="Change photo" className="relative rounded-full">
+        <Avatar profile={profile} size="xl" />
+        {setPhoto.isPending && (
+          <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40">
+            <Spinner size={18} className="text-white" />
+          </span>
+        )}
+      </button>
+      <input
+        ref={input}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) change(file);
+        }}
+      />
+      <Button size="xs" variant="ghost" onClick={pick} disabled={setPhoto.isPending}>
+        <Camera size={13} /> {profile.avatar_url ? "Change photo" : "Upload photo"}
+      </Button>
+      {isUploadedPhoto(profile.avatar_url) && (
+        <Button size="xs" variant="ghost" className="text-muted" onClick={() => change(null)} disabled={setPhoto.isPending}>
+          Remove photo
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function SessionsCard() {
+  const [busy, setBusy] = useState(false);
+  const signOutOthers = async () => {
+    setBusy(true);
+    const { error } = await createClient().auth.signOut({ scope: "others" });
+    setBusy(false);
+    if (error) toast.error(errorMessage(error));
+    else toast.success("Signed out of every other device");
+  };
+
+  return (
+    <SettingsCard title="Sessions">
+      <div className="divide-y divide-border">
+        <SettingRow title="Other devices" description="Sign out everywhere except this browser, e.g. after using a shared computer.">
+          <Button size="sm" onClick={signOutOthers} disabled={busy}>
+            {busy && <Spinner size={14} />} Sign out other sessions
+          </Button>
+        </SettingRow>
+        <SettingRow title="This device" description="To leave the workspace, ask an admin to deactivate your account.">
+          <Button size="sm" onClick={() => signOut()}>
+            <LogOut size={14} /> Sign out
+          </Button>
+        </SettingRow>
       </div>
     </SettingsCard>
   );
@@ -235,7 +356,7 @@ const THEMES: { value: Theme; label: string; icon: React.ReactNode }[] = [
 function AppearanceCard() {
   const theme = useTheme();
   return (
-    <SettingsCard title="Appearance" description="Saved on this device.">
+    <SettingsCard title="Theme" description="Saved on this device.">
       <div role="radiogroup" aria-label="Theme" className="grid grid-cols-3 gap-2 py-3">
         {THEMES.map((t) => (
           <button

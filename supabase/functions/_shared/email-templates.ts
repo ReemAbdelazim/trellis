@@ -47,7 +47,7 @@ export const links = {
   myTasks: "/my-tasks/",
   inbox: "/inbox/",
   projects: "/projects/",
-  settings: "/settings/",
+  notificationSettings: "/settings/?tab=notifications",
   project: (id: string) => `/project/?id=${id}`,
   task: (taskId: string, projectId: string | null) =>
     projectId ? `/project/?id=${projectId}&view=list&task=${taskId}` : `/my-tasks/?task=${taskId}`,
@@ -154,7 +154,7 @@ function layout(ctx: Ctx, opts: { preheader: string; body: string; footerReason:
 <tr><td style="padding:16px 28px 28px;font-size:15px;line-height:1.55">${opts.body}</td></tr>
 </table>
 <p style="font-size:12px;color:${FAINT};margin:16px 0 0;max-width:600px">
-  ${escapeHtml(opts.footerReason)} ${link(ctx, links.settings, "Change what Trellis sends you.", `color:${FAINT}`)}
+  ${escapeHtml(opts.footerReason)} ${link(ctx, links.notificationSettings, "Change what Trellis sends you.", `color:${FAINT}`)}
 </p>
 </td></tr></table></body></html>`;
 }

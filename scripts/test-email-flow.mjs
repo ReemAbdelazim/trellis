@@ -165,7 +165,7 @@ check("email quotes the comment with plain names", !!toSam[0]?.html.includes("ca
 check("View task button opens the task", !!toSam[0] && linksTo(toSam[0], taskLink));
 check("task card links the project", !!toSam[0] && linksTo(toSam[0], `/project/?id=${task.project_id}`));
 check("people link to their tasks", !!toSam[0] && linksTo(toSam[0], `/search/?assignee=${ids.jordan}`));
-check("footer links to email settings", !!toSam[0] && linksTo(toSam[0], "/settings/"));
+check("footer links to email settings", !!toSam[0] && linksTo(toSam[0], "/settings/?tab=notifications"));
 check("plain-text version links the task", !!toSam[0]?.text.includes(`${APP_URL}${taskLink}`));
 check("email starts a thread for the task", toSam[0]?.references === `<task-${task.id}@trellis.app>` && toSam[0].inReplyTo === toSam[0].references, toSam[0]?.references);
 

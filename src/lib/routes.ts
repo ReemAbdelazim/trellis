@@ -1,3 +1,5 @@
+export type SettingsTab = "profile" | "notifications" | "account" | "display";
+
 /**
  * Every in-app URL is built here. The app is a static export (GitHub Pages),
  * so records are addressed with query parameters rather than path segments.
@@ -21,6 +23,7 @@ export const routes = {
   goal: (id: string) => `/goal?id=${id}`,
   portfolio: (id: string) => `/portfolio?id=${id}`,
   search: (q: string) => `/search?q=${encodeURIComponent(q)}`,
+  settingsTab: (tab: SettingsTab) => `/settings?tab=${tab}`,
 
   /** Opens a task in the pane on its project's list, or on My tasks for personal tasks. */
   task: (taskId: string, projectId?: string | null) =>
