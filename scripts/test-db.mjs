@@ -60,6 +60,12 @@ const g = await makeUser(G);
 check("invited guest can sign up", !g.error, g.error?.message);
 const { data: gp } = await admin.from("profiles").select("role").eq("id", g.user.id).single();
 check("invited outsider gets guest role", gp?.role === "guest");
+// Gmail ignores dots and "+tags": an invite to the dotted form admits the plain address.
+await cm1.from("invitations").insert({ email: `gmail.${run}+trellis@gmail.com`, role: "guest", invited_by: await uid(cm1) });
+const gmailGuest = await makeUser(`gmail${run}@gmail.com`);
+check("Gmail invite matches the address without dots or +tag", !gmailGuest.error, gmailGuest.error?.message);
+const { data: gmailInvite } = await admin.from("invitations").select("accepted_at").eq("email", `gmail.${run}+trellis@gmail.com`).single();
+check("that invitation is marked accepted", !!gmailInvite?.accepted_at);
 const cg = await as(G);
 
 console.log("\nRoles & admin guard");
