@@ -337,14 +337,14 @@ isOneToOne: false
                   ]
                 },"profiles": {
                   Row: {
-                    "avatar_url": string | null,"created_at": string,"email": string,"email_notifications": boolean,"full_name": string,"id": string,"last_digest_on": string | null,"last_seen_at": string | null,"role": Database["public"]['Enums']["user_role"],"status": Database["public"]['Enums']["user_status"],"timezone": string | null,"title": string | null
+                    "avatar_url": string | null,"created_at": string,"email": string,"email_notifications": boolean,"email_prefs": NonNullable<Json>,"full_name": string,"id": string,"last_digest_on": string | null,"last_seen_at": string | null,"role": Database["public"]['Enums']["user_role"],"status": Database["public"]['Enums']["user_status"],"timezone": string | null,"title": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "avatar_url"?: string | null,"created_at"?: string,"email": string,"email_notifications"?: boolean,"full_name"?: string,"id": string,"last_digest_on"?: string | null,"last_seen_at"?: string | null,"role"?: Database["public"]['Enums']["user_role"],"status"?: Database["public"]['Enums']["user_status"],"timezone"?: string | null,"title"?: string | null
+                    "avatar_url"?: string | null,"created_at"?: string,"email": string,"email_notifications"?: boolean,"email_prefs"?: NonNullable<Json>,"full_name"?: string,"id": string,"last_digest_on"?: string | null,"last_seen_at"?: string | null,"role"?: Database["public"]['Enums']["user_role"],"status"?: Database["public"]['Enums']["user_status"],"timezone"?: string | null,"title"?: string | null
                   }
                   Update: {
-                    "avatar_url"?: string | null,"created_at"?: string,"email"?: string,"email_notifications"?: boolean,"full_name"?: string,"id"?: string,"last_digest_on"?: string | null,"last_seen_at"?: string | null,"role"?: Database["public"]['Enums']["user_role"],"status"?: Database["public"]['Enums']["user_status"],"timezone"?: string | null,"title"?: string | null
+                    "avatar_url"?: string | null,"created_at"?: string,"email"?: string,"email_notifications"?: boolean,"email_prefs"?: NonNullable<Json>,"full_name"?: string,"id"?: string,"last_digest_on"?: string | null,"last_seen_at"?: string | null,"role"?: Database["public"]['Enums']["user_role"],"status"?: Database["public"]['Enums']["user_status"],"timezone"?: string | null,"title"?: string | null
                   }
                   Relationships: [
                     

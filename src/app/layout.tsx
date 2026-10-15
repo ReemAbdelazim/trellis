@@ -7,8 +7,8 @@ import "./globals.css";
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: { default: "Seeds Tasks", template: "%s · Seeds Tasks" },
-  description: "Plan, track, and grow the work at Seeds of Leadership.",
+  title: { default: "Trellis", template: "%s · Trellis" },
+  description: "Plan and track your team's work.",
 };
 
 

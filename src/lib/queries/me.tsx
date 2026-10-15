@@ -1,10 +1,10 @@
 "use client";
 
 import { createContext, useContext, useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import { routes } from "@/lib/routes";
+import { currentPath, routes } from "@/lib/routes";
 import { PageLoader } from "@/components/ui/misc";
 import { qk } from "./keys";
 import type { Profile } from "@/types/models";
@@ -34,13 +34,17 @@ async function loadSession(): Promise<SessionState> {
 
 const MeContext = createContext<Profile | null>(null);
 
+/** Sign-in step URL that returns to the current page (e.g. a task opened from an email). */
+function withNext(step: string) {
+  return `${step}?next=${encodeURIComponent(currentPath())}`;
+}
+
 /**
  * Gate for every signed-in page: resolves the session, two-factor state and
  * profile, redirects to /login, /mfa or /no-access, and provides the profile.
  */
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname();
   const qc = useQueryClient();
   const { data, isError, isFetching, refetch } = useQuery({
     queryKey: qk.me,
@@ -53,7 +57,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     const { data: sub } = createClient().auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT") {
         qc.clear();
-        router.replace(routes.login);
+        router.replace(withNext(routes.login));
       }
     });
     return () => sub.subscription.unsubscribe();
@@ -62,20 +66,18 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isFetching) return; // act on a fresh answer, not a cached one being re-checked
     if (data?.status === "signed-out") {
-      const next = `${pathname}${window.location.search}`;
-      router.replace(`${routes.login}?next=${encodeURIComponent(next)}`);
+      router.replace(withNext(routes.login));
     } else if (data?.status === "needs-mfa") {
-      const next = `${pathname}${window.location.search}`;
-      router.replace(`${routes.mfa}?next=${encodeURIComponent(next)}`);
+      router.replace(withNext(routes.mfa));
     } else if (data?.status === "no-access") {
       router.replace("/no-access");
     }
-  }, [data, isFetching, pathname, router]);
+  }, [data, isFetching, router]);
 
   if (isError) {
     return (
       <div className="flex h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
-        <p className="font-medium">Couldn&apos;t reach Seeds Tasks.</p>
+        <p className="font-medium">Couldn&apos;t reach Trellis.</p>
         <button onClick={() => refetch()} className="text-sm font-medium text-accent hover:underline">
           Try again
         </button>

@@ -1,5 +1,5 @@
 -- =============================================================================
--- Seeds Tasks — core schema
+-- Trellis — core schema
 -- Tables, access helpers, and row level security.
 -- =============================================================================
 
@@ -36,6 +36,9 @@ create table public.profiles (
   role public.user_role not null default 'member',
   status public.user_status not null default 'active',
   email_notifications boolean not null default true,
+  -- Per-kind email opt-outs, e.g. {"comments": false}. Missing keys mean "on".
+  -- Kinds: daily, comments, assigned, mentions, invites.
+  email_prefs jsonb not null default '{}',
   timezone text,
   last_seen_at timestamptz,
   created_at timestamptz not null default now()
@@ -294,6 +297,7 @@ create table public.notifications (
   user_id uuid not null references public.profiles (id) on delete cascade,
   actor_id uuid references public.profiles (id) on delete set null,
   -- assigned | mentioned | commented | completed | due_soon | added_to_project | status_update | goal_update
+  -- | welcome | invite_accepted
   type text not null,
   task_id uuid references public.tasks (id) on delete cascade,
   project_id uuid references public.projects (id) on delete cascade,

@@ -47,14 +47,22 @@ export function SettingRow({
   description,
   children,
   htmlFor,
+  inset = false,
 }: {
   title: string;
   description?: React.ReactNode;
   children: React.ReactNode;
   htmlFor?: string;
+  /** Indents a row that depends on the one above it. */
+  inset?: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+    <div
+      className={cn(
+        "flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6",
+        inset && "pl-4 sm:pl-6",
+      )}
+    >
       <div className="min-w-0">
         <label htmlFor={htmlFor} className="block text-sm font-medium">
           {title}

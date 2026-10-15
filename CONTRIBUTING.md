@@ -1,4 +1,4 @@
-# Contributing to Seeds Tasks
+# Contributing to Trellis
 
 Thanks for helping! Bug fixes, new features, docs and design improvements are all welcome.
 
@@ -41,7 +41,7 @@ Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). The short version:
   (compare against `my_visible_project_ids()` and the like), never a per-row function call; see the
   performance rule in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). If you touch policies, run
   `scripts/load-test.sql` (500 people's worth of data, rolled back afterwards):
-  `docker exec -i supabase_db_seeds-tasks psql -U postgres -f - < scripts/load-test.sql`.
+  `docker exec -i supabase_db_trellis psql -U postgres -f - < scripts/load-test.sql`.
 - **Database changes** go in a **new** migration file (`npx supabase migration new <name>`).
   Never edit a migration that has already been released. Then run `npm run db:reset` and
   `npm run db:types`.

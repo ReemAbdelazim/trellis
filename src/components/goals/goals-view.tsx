@@ -77,7 +77,7 @@ function GoalsInner() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">Goals</h1>
-          <p className="text-sm text-muted">Where Seeds is headed, and how our work adds up.</p>
+          <p className="text-sm text-muted">Where we&apos;re headed, and how the work adds up.</p>
         </div>
         <Button variant="primary" onClick={() => setOpen(true)}>
           <Plus size={15} /> New goal

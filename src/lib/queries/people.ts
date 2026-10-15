@@ -81,6 +81,7 @@ export function useUpdateMyProfile() {
           full_name: patch.full_name,
           title: patch.title,
           email_notifications: patch.email_notifications,
+          email_prefs: patch.email_prefs,
           timezone: patch.timezone,
         })
         .eq("id", id);

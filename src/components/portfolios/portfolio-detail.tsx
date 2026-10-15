@@ -566,7 +566,7 @@ function MembersDialog({
           </ul>
           {!portfolio.is_private && (
             <p className="mt-2 text-xs text-muted">
-              Everyone at Seeds can view this portfolio. Members with edit access can change its projects.
+              Everyone in the workspace can view this portfolio. Members with edit access can change its projects.
             </p>
           )}
         </div>

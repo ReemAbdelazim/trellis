@@ -202,7 +202,7 @@ export function PrivacyToggle({
           <Lock size={13} /> Private
         </span>
         <span className="block text-xs text-muted">
-          Only you, portfolio members and admins can see it. Otherwise every member at Seeds can view it.
+          Only you, portfolio members and admins can see it. Otherwise every member can view it.
         </span>
       </span>
     </label>

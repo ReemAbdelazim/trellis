@@ -1,4 +1,4 @@
-# Seeds Tasks
+# Trellis
 
 Open-source work management for small organizations: projects, tasks, boards, timelines, goals and
 more. Built for [Seeds of Leadership](https://seedsofleadership.ca), free for anyone to run.
@@ -21,14 +21,32 @@ more. Built for [Seeds of Leadership](https://seedsofleadership.ca), free for an
 - **Custom fields** (text, number, date, single/multi select, people, checkbox) and **rules**
   ("when a task moves to Done, mark it complete")
 - **My tasks**, **Home**, **Inbox** (updates live), global search (Ctrl/Cmd + K)
-- **Email notifications**: hourly when someone @mentions you, plus a morning digest (8am in your
-  time zone) of anything still unread
+- **Email notifications** (see [Emails](#emails)): one thread per task for comments, assignments
+  and @mentions, a daily update of tasks due soon, plus welcome and accepted-invite emails. Each
+  kind can be switched off in Settings
 - **Goals**, **Portfolios** and **Workload**
 - **Teams**, project privacy (workspace / team / private) and project roles (admin, editor,
   commenter, viewer)
 - **Admin console**: people, roles, deactivation, removing users, resetting someone's two-factor,
   guest invitations, allowed email domains, email setup
 - Works on phones, tablets, laptops and large monitors; light and dark themes
+
+## Emails
+
+Every email links straight to the page it's about (the task pane, the project, the person's tasks),
+and a signed-out reader is taken back there after signing in.
+
+| Email | When | Opens |
+| --- | --- | --- |
+| Welcome | The first time someone signs in | Home, My tasks, Inbox and each project they were added to |
+| Daily update | Around 8am in the reader's time zone, if they have tasks due within 2 days or overdue, or unread Inbox items | Each task; My tasks; Inbox |
+| Task activity | Hourly: new comments on tasks you follow, assignments and @mentions | The task |
+| Invite accepted | Someone you invited signs in | Their projects shared with you |
+| Invitation, password reset, email confirmation | Immediately | Sign-in, then the invited project / the reset form |
+
+Task activity is grouped: one email per task per hour, whatever happened on it. Emails about the
+same task keep the same subject and `References` header, so Gmail, Outlook and Apple Mail show them
+as one conversation instead of a new email each time. Items already read in the app aren't emailed.
 
 ## How it works
 
@@ -39,7 +57,7 @@ Browser: static Next.js app on GitHub Pages
   │                                     • row-level security checks every read and write
   │                                     • two-factor required on every table
   │                                     • triggers: activity, notifications, rules
-  │                                     • pg_cron: hourly mention emails, 15-min digest runs
+  │                                     • pg_cron: hourly task emails, 15-min account/daily emails
   └─ privileged work ──▶ Edge Functions: invite · admin · files · notifications · auth-email
                               │                                     │
                               ▼                                     ▼

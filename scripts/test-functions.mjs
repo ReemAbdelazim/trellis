@@ -80,7 +80,7 @@ check("rejects calls without the cron secret", r.status === 401, r);
 r = await call("notifications", null, {}, { "x-cron-secret": "guess" });
 check("rejects a wrong cron secret", r.status === 401, r);
 await admin.rpc("configure_notifications", { p_url: `${URL_}/functions/v1/notifications`, p_secret: `test-${run}` });
-r = await call("notifications", null, { job: "mentions" }, { "x-cron-secret": `test-${run}` });
+r = await call("notifications", null, { job: "activity" }, { "x-cron-secret": `test-${run}` });
 check("accepts the configured secret", r.status === 200 && r.body?.ok, r);
 
 finish();

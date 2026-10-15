@@ -3,7 +3,8 @@
 // Supabase's built-in mailer (which is limited to a few emails an hour).
 // Configure in Supabase → Authentication → Hooks → Send Email (see docs/SELF_HOSTING.md).
 import { Webhook } from "npm:standardwebhooks@1.0.0";
-import { appUrl, emailLayout, escapeHtml, sendEmail } from "../_shared/email.ts";
+import { appUrl, sendEmail } from "../_shared/email.ts";
+import { simpleEmail } from "../_shared/email-templates.ts";
 
 const HOOK_SECRET = (Deno.env.get("SEND_EMAIL_HOOK_SECRET") ?? "").replace(/^v1,whsec_/, "");
 
@@ -20,33 +21,33 @@ interface HookPayload {
 
 const COPY: Record<string, { subject: string; title: string; intro: string; cta: string }> = {
   signup: {
-    subject: "Confirm your email for Seeds Tasks",
+    subject: "Confirm your email for Trellis",
     title: "Confirm your email",
-    intro: "Confirm this address to finish creating your Seeds Tasks account.",
+    intro: "Confirm this address to finish creating your Trellis account.",
     cta: "Confirm email",
   },
   recovery: {
-    subject: "Reset your Seeds Tasks password",
+    subject: "Reset your Trellis password",
     title: "Reset your password",
     intro: "Someone asked to reset the password for this account. If it was you, choose a new password below. If not, you can ignore this email.",
     cta: "Choose a new password",
   },
   email_change: {
-    subject: "Confirm your new email for Seeds Tasks",
+    subject: "Confirm your new email for Trellis",
     title: "Confirm your new email",
-    intro: "Confirm this address to finish changing the email on your Seeds Tasks account.",
+    intro: "Confirm this address to finish changing the email on your Trellis account.",
     cta: "Confirm email",
   },
   magiclink: {
-    subject: "Your Seeds Tasks sign-in link",
-    title: "Sign in to Seeds Tasks",
+    subject: "Your Trellis sign-in link",
+    title: "Sign in to Trellis",
     intro: "Use the button below to sign in. The link works once and expires soon.",
     cta: "Sign in",
   },
   invite: {
-    subject: "You're invited to Seeds Tasks",
+    subject: "You're invited to Trellis",
     title: "You're invited",
-    intro: "You've been invited to Seeds Tasks. Use the button below to set up your account.",
+    intro: "You've been invited to Trellis. Use the button below to set up your account.",
     cta: "Accept invitation",
   },
 };
@@ -67,13 +68,16 @@ async function send(to: string, type: string, link: string) {
   const copy = COPY[type] ?? COPY.magiclink;
   const ok = await sendEmail({
     to,
-    subject: copy.subject,
-    html: emailLayout(
-      copy.title,
-      `<p>${escapeHtml(copy.intro)}</p><p style="color:#5f6a62;font-size:12px">The link expires in one hour.</p>`,
-      { label: copy.cta, url: link },
+    ...simpleEmail(
+      { appUrl },
+      {
+        subject: copy.subject,
+        title: copy.title,
+        paragraphs: [copy.intro, "The link expires in one hour."],
+        cta: { label: copy.cta, url: link },
+        footerReason: "You're getting this because of a request on your Trellis account.",
+      },
     ),
-    text: `${copy.title}\n\n${copy.intro}\n\n${link}\n\nThe link expires in one hour.`,
   });
   if (!ok) throw new Error("Email could not be sent");
 }
@@ -102,9 +106,15 @@ Deno.serve(async (req) => {
     if (e.email_action_type === "reauthentication") {
       const ok = await sendEmail({
         to: user.email,
-        subject: "Your Seeds Tasks confirmation code",
-        html: emailLayout("Confirmation code", `<p>Your code is <b style="font-size:20px;letter-spacing:2px">${escapeHtml(e.token)}</b></p>`),
-        text: `Your Seeds Tasks confirmation code is ${e.token}`,
+        ...simpleEmail(
+          { appUrl },
+          {
+            subject: "Your Trellis confirmation code",
+            title: `Your confirmation code is ${e.token}`,
+            paragraphs: ["Enter this code in Trellis to confirm the change. It expires soon."],
+            footerReason: "You're getting this because of a request on your Trellis account.",
+          },
+        ),
       });
       if (!ok) throw new Error("Email could not be sent");
     } else if (e.email_action_type === "email_change" && user.new_email) {

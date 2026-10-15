@@ -14,7 +14,7 @@ export async function callFunction<T>(name: "invite" | "admin" | "files", body: 
       const payload = await error.context.json().catch(() => null);
       throw new Error(payload?.error ?? "Something went wrong");
     }
-    throw new Error("Couldn't reach Seeds Tasks. Check your connection and try again.");
+    throw new Error("Couldn't reach Trellis. Check your connection and try again.");
   }
   return data as T;
 }

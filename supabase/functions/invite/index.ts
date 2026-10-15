@@ -3,7 +3,8 @@
 // If the person already has an account, they're simply added to the project.
 import { HttpError, json, readJson, serve } from "../_shared/http.ts";
 import { requireCaller } from "../_shared/supabase.ts";
-import { appUrl, emailLayout, escapeHtml, sendEmail } from "../_shared/email.ts";
+import { appUrl, sendEmail } from "../_shared/email.ts";
+import { simpleEmail } from "../_shared/email-templates.ts";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -50,16 +51,21 @@ serve(async (req) => {
   }
 
   const inviter = caller.fullName || "A teammate";
-  const where = projectName ? ` to the project <b>${escapeHtml(projectName)}</b>` : " to Seeds Tasks";
   const emailed = await sendEmail({
     to: email,
-    subject: `${inviter} invited you${projectName ? ` to ${projectName}` : ""} on Seeds Tasks`,
-    html: emailLayout(
-      "You're invited",
-      `<p>${escapeHtml(inviter)} invited you${where}.</p><p>Sign in with Google or Microsoft using <b>${escapeHtml(email)}</b>.</p>`,
-      { label: "Open Seeds Tasks", url: appUrl("/login") },
+    ...simpleEmail(
+      { appUrl },
+      {
+        subject: `${inviter} invited you${projectName ? ` to ${projectName}` : ""} on Trellis`,
+        title: projectName ? `Join ${projectName} on Trellis` : "Join your team on Trellis",
+        paragraphs: [
+          `${inviter} (${caller.email}) invited you to Trellis${projectName ? `, to work on ${projectName}` : ""}.`,
+          `Sign in with Google, Microsoft or a password, using ${email}.`,
+        ],
+        cta: { label: "Accept invite", url: appUrl(`/login/?next=${encodeURIComponent(projectId ? `/project/?id=${projectId}` : "/home/")}`) },
+        footerReason: "You're getting this because someone invited you.",
+      },
     ),
-    text: `${inviter} invited you${projectName ? ` to ${projectName}` : ""} on Seeds Tasks. Sign in with Google or Microsoft using ${email}: ${appUrl("/login")}`,
   });
 
   return json({ ok: true, emailed });

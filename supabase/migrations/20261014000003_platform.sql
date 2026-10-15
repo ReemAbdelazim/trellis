@@ -1,5 +1,5 @@
 -- =============================================================================
--- Seeds Tasks — platform wiring: realtime, file storage, scheduled jobs.
+-- Trellis — platform wiring: realtime, file storage, scheduled jobs.
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------
@@ -30,9 +30,11 @@ create policy "attachments_remove" on storage.objects for delete to authenticate
 -- ---------------------------------------------------------------------------
 -- Email notifications
 --
--- pg_cron calls the `notifications` Edge Function, which emails:
---   * hourly: new @mentions since the last run (only people who have some), and
---   * every 15 min: morning digests (8am in each person's time zone) of unread items.
+-- pg_cron calls the `notifications` Edge Function:
+--   * hourly ("activity"): comments, assignments and @mentions, one email per task,
+--     threaded per task in the recipient's inbox
+--   * every 15 min ("frequent"): welcome and invite-accepted emails, plus the daily
+--     update at 8am in each person's time zone
 -- The job is a no-op until an admin connects email in the Admin console, which
 -- stores the function URL and a shared secret here.
 -- ---------------------------------------------------------------------------
@@ -68,7 +70,7 @@ $$;
 create extension if not exists pg_cron with schema pg_catalog;
 create extension if not exists pg_net with schema extensions;
 
--- Daily: remind assignees about tasks due tomorrow (lands before morning digests).
+-- Daily: remind assignees about tasks due tomorrow (lands before the daily update).
 create or replace function private.notify_due_soon()
 returns void language plpgsql security definer set search_path = '' as $$
 begin
@@ -101,9 +103,11 @@ begin
 end;
 $$;
 
-select cron.schedule('seeds-due-soon', '0 9 * * *', 'select private.notify_due_soon()');
-select cron.schedule('seeds-mention-emails', '0 * * * *', $$select private.dispatch_notifications('mentions')$$);
-select cron.schedule('seeds-morning-digests', '*/15 * * * *', $$select private.dispatch_notifications('digests')$$);
+select cron.schedule('trellis-due-soon', '0 9 * * *', 'select private.notify_due_soon()');
+-- Hourly: one email per task with new comments, assignments and @mentions.
+select cron.schedule('trellis-activity-emails', '0 * * * *', $$select private.dispatch_notifications('activity')$$);
+-- Every 15 minutes: welcome / invite-accepted emails and the morning daily update.
+select cron.schedule('trellis-frequent-emails', '*/15 * * * *', $$select private.dispatch_notifications('frequent')$$);
 
 -- ---------------------------------------------------------------------------
 -- API surface: nothing for anonymous visitors; signed-in users get the

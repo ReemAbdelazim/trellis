@@ -20,7 +20,9 @@ export type NotificationType =
   | "due_soon"
   | "added_to_project"
   | "status_update"
-  | "goal_update";
+  | "goal_update"
+  | "welcome"
+  | "invite_accepted";
 
 /** The notification columns these helpers read. */
 export interface NotificationLike {
@@ -104,6 +106,10 @@ export function describeNotification(n: Pick<NotificationLike, "type" | "data" |
       const status = statusLabel(d.status);
       return [who("Someone"), { text: " updated the goal " }, { text: goal, strong: true }, { text: status ? ` to ${status}` : "" }];
     }
+    case "welcome":
+      return [{ text: "Welcome to " }, { text: "Trellis", strong: true }, { text: ". Your account is ready." }];
+    case "invite_accepted":
+      return [who("Someone"), { text: " accepted your invitation" }, ...(ctx.projectName ? [{ text: " to " }, { text: project, strong: true }] : [])];
     default:
       return [who("Someone"), { text: " sent you an update" }];
   }
@@ -120,5 +126,5 @@ export function notificationHref(n: Pick<NotificationLike, "task_id" | "project_
   }
   if (n.goal_id) return `/goal?id=${n.goal_id}`;
   if (n.project_id) return `/project?id=${n.project_id}`;
-  return "/inbox";
+  return "/home";
 }

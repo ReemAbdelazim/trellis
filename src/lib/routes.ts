@@ -27,10 +27,15 @@ export const routes = {
     projectId ? `/project?id=${projectId}&view=list&task=${taskId}` : `/my-tasks?task=${taskId}`,
 };
 
-/** Sub-path the site is served from (e.g. "/seeds-tasks" on GitHub Pages). */
+/** Sub-path the site is served from (e.g. "/trellis" on GitHub Pages). */
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 /** Absolute URL for an in-app path, for copying, emails and OAuth redirects. */
 export function absoluteUrl(path: string) {
   return `${window.location.origin}${BASE_PATH}${path}`;
+}
+
+/** The current in-app path and query, without the base path. */
+export function currentPath() {
+  return window.location.pathname.slice(BASE_PATH.length) + window.location.search;
 }

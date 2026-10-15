@@ -12,8 +12,8 @@ export default function NoAccessPage() {
         </div>
         <h1 className="mt-4 text-xl font-semibold">Your account doesn&apos;t have access</h1>
         <p className="mt-2 text-sm text-muted">
-          This account has been deactivated or hasn&apos;t been set up in the Seeds workspace. If you think this is a
-          mistake, contact a Seeds admin.
+          This account has been deactivated or hasn&apos;t been set up in this workspace. If you think this is a
+          mistake, contact an admin.
         </p>
         <button onClick={() => signOut()} className="mt-6 text-sm font-medium text-accent hover:underline">
           Sign in with a different account

@@ -1,4 +1,4 @@
-# Seeds Tasks — architecture & conventions
+# Trellis — architecture & conventions
 
 An original work-management app (Asana-style) for Seeds of Leadership.
 Stack: Next.js 16 (App Router, **static export** for GitHub Pages) · React 19 · Tailwind v4 ·
@@ -28,8 +28,10 @@ Edge Functions, pg_cron) · Gmail API (email) · Cloudflare R2 (attachments, opt
     delivery, test email, resend invite
   - `files`: signed upload/download URLs for attachments on Cloudflare R2 (falls back to Supabase
     Storage when R2 isn't configured)
-  - `notifications`: called by pg_cron. Hourly @mention emails; every 15 minutes, morning digests
-    (8am local time), at most 100 emails per run
+  - `notifications`: called by pg_cron. Hourly (`activity`): one email per person per task for new
+    comments, assignments and @mentions, threaded per task. Every 15 minutes (`frequent`): welcome
+    and invite-accepted emails, and the daily update (8am local time). Honours each person's
+    `email_prefs`; at most 100 emails per run. Templates live in `_shared/email-templates.ts`
   - `auth-email`: Supabase Auth "Send Email" hook (confirm address, reset password), verified with
     Standard Webhooks signatures
   All email goes through `_shared/email.ts` (Gmail API with a stored refresh token).

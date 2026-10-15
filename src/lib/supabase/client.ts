@@ -15,7 +15,7 @@ export function createClient() {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: false,
-      storageKey: "seeds-tasks-auth",
+      storageKey: "trellis-auth",
     },
   });
   return client;

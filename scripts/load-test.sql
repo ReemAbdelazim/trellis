@@ -1,6 +1,6 @@
 -- Load test: 500 people's worth of data, then the app's hottest queries timed
 -- as a signed-in member (RLS + two-factor). Everything is rolled back.
---   docker exec -i supabase_db_seeds-tasks psql -U postgres -f - < scripts/load-test.sql
+--   docker exec -i supabase_db_trellis psql -U postgres -f - < scripts/load-test.sql
 \timing off
 \set QUIET on
 begin;

@@ -28,12 +28,12 @@ function MfaStep() {
       const { data, error } = await auth.getUser();
       if (error || !data.user) {
         await auth.signOut({ scope: "local" });
-        return router.replace(routes.login);
+        return router.replace(`${routes.login}?next=${encodeURIComponent(next)}`);
       }
       const factor = data.user.factors?.find((f) => f.factor_type === "totp" && f.status === "verified");
       setState(factor ? { kind: "challenge", factorId: factor.id } : { kind: "enroll" });
     })();
-  }, [router]);
+  }, [next, router]);
 
   const done = () => {
     // Drop the cached "needs two-factor" answer so the app gate re-checks the upgraded session.
@@ -51,7 +51,7 @@ function MfaStep() {
           </h1>
           <p className="mt-1 text-sm text-muted">
             {state.kind === "enroll"
-              ? "Seeds Tasks requires an authenticator app for every account. It takes about a minute."
+              ? "Trellis requires an authenticator app for every account. It takes about a minute."
               : "Enter the code from your authenticator app to continue."}
           </p>
         </div>
@@ -61,7 +61,7 @@ function MfaStep() {
           {state.kind === "enroll" && <MfaEnroll onDone={done} />}
         </div>
         <p className="mt-6 text-center text-xs text-faint">
-          Lost your phone? Ask a Seeds admin to reset your two-factor.{" "}
+          Lost your phone? An admin can reset it.{" "}
           <button onClick={() => signOut()} className="text-accent hover:underline">
             Sign out
           </button>

@@ -50,7 +50,7 @@ const server = createServer(async (req, res) => {
   console.log("\nAuthorised. Store these as Supabase function secrets (replace the sender address):\n");
   console.log(
     `npx supabase secrets set GMAIL_CLIENT_ID=${clientId} GMAIL_CLIENT_SECRET=${clientSecret} ` +
-      `GMAIL_REFRESH_TOKEN=${tokens.refresh_token} EMAIL_FROM="Seeds Tasks <tasks@yourorg.org>"\n`,
+      `GMAIL_REFRESH_TOKEN=${tokens.refresh_token} EMAIL_FROM="Trellis <tasks@yourorg.org>"\n`,
   );
   console.log("EMAIL_FROM must be the account you just signed in with (or one of its Gmail 'Send mail as' aliases).");
   shutdown(0);

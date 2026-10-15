@@ -58,12 +58,18 @@ function fromHeader(from: string) {
   return m ? `${encodeHeader(m[1].trim())} <${noNewlines(m[2])}>` : noNewlines(from);
 }
 
-function mimeMessage(input: { to: string; subject: string; html: string; text: string }) {
-  const boundary = `seeds-${crypto.randomUUID()}`;
+const MESSAGE_DOMAIN = "trellis.app";
+
+function mimeMessage(input: OutgoingEmail) {
+  const boundary = `trellis-${crypto.randomUUID()}`;
+  // Emails sharing a threadKey reference the same root id, so mail apps group them.
+  const thread = input.threadKey ? `<${noNewlines(input.threadKey)}@${MESSAGE_DOMAIN}>` : null;
   return [
     `From: ${fromHeader(EMAIL_FROM!)}`,
     `To: ${noNewlines(input.to)}`,
     `Subject: ${encodeHeader(input.subject)}`,
+    `Message-ID: <${crypto.randomUUID()}@${MESSAGE_DOMAIN}>`,
+    ...(thread ? [`In-Reply-To: ${thread}`, `References: ${thread}`] : []),
     "MIME-Version: 1.0",
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
     "",
@@ -82,8 +88,17 @@ function mimeMessage(input: { to: string; subject: string; html: string; text: s
   ].join("\r\n");
 }
 
+export interface OutgoingEmail {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  /** Emails with the same key are threaded together (e.g. one thread per task). */
+  threadKey?: string;
+}
+
 /** Sends one email. Returns false (never throws) so callers can retry later. */
-export async function sendEmail(input: { to: string; subject: string; html: string; text: string }) {
+export async function sendEmail(input: OutgoingEmail) {
   if (!emailEnabled()) return false;
   try {
     const raw = base64(utf8(mimeMessage(input))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -102,22 +117,4 @@ export async function sendEmail(input: { to: string; subject: string; html: stri
     console.error("Email could not be sent", err);
     return false;
   }
-}
-
-export function escapeHtml(s: string) {
-  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
-}
-
-/** Minimal, client-safe email layout. `body` must already be escaped HTML. */
-export function emailLayout(title: string, body: string, cta?: { label: string; url: string }) {
-  return `<!doctype html><html><body style="margin:0;background:#f7f8f6;font-family:Arial,Helvetica,sans-serif;color:#1e2420">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
-<table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border:1px solid #e1e5de;border-radius:12px" cellpadding="0" cellspacing="0">
-<tr><td style="padding:24px 28px 8px"><div style="font-size:13px;font-weight:bold;color:#2f7d4f">Seeds Tasks</div>
-<h1 style="font-size:18px;margin:12px 0 0">${escapeHtml(title)}</h1></td></tr>
-<tr><td style="padding:8px 28px 24px;font-size:14px;line-height:1.55">${body}
-${cta ? `<p style="margin:24px 0 0"><a href="${escapeHtml(cta.url)}" style="background:#2f7d4f;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:6px;font-weight:bold;display:inline-block">${escapeHtml(cta.label)}</a></p>` : ""}
-</td></tr></table>
-<p style="font-size:11px;color:#8a948c;margin-top:16px">Change email preferences in Seeds Tasks → Profile &amp; notifications.</p>
-</td></tr></table></body></html>`;
 }

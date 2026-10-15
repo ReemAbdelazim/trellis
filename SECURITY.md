@@ -1,6 +1,6 @@
 # Security policy
 
-Seeds Tasks stores organizations' work, so we take security seriously.
+Trellis stores organizations' work, so we take security seriously.
 
 ## Reporting a vulnerability
 

@@ -1,5 +1,5 @@
 -- =============================================================================
--- Seeds Tasks — business logic: sign-up gate, guards, activity, notifications,
+-- Trellis — business logic: sign-up gate, guards, activity, notifications,
 -- rules automation, templates.
 -- =============================================================================
 
@@ -86,11 +86,18 @@ begin
     v_role
   )
   on conflict (id) do nothing;
+  if not found then return; end if; -- already provisioned
+
+  -- Inbox item + "first access" email (notify() skips self-notifications).
+  insert into public.notifications (user_id, actor_id, type) values (p_user.id, null, 'welcome');
 
   select * into v_invite from public.invitations
     where lower(email) = v_email and accepted_at is null
     order by created_at desc limit 1;
   if v_invite.id is null then return; end if;
+
+  perform private.notify(v_invite.invited_by, 'invite_accepted', null, v_invite.project_id,
+    p_data => jsonb_build_object('user_id', p_user.id), p_actor => p_user.id);
 
   update public.invitations set accepted_at = now() where lower(email) = v_email and accepted_at is null;
   if v_invite.project_id is not null and private.can_edit_project(v_invite.project_id, v_invite.invited_by) then
@@ -265,17 +272,18 @@ create trigger projects_before_insert before insert on public.projects
 -- =============================================================================
 create or replace function private.notify(
   p_user uuid, p_type text, p_task uuid default null, p_project uuid default null,
-  p_comment uuid default null, p_data jsonb default '{}', p_goal uuid default null
+  p_comment uuid default null, p_data jsonb default '{}', p_goal uuid default null,
+  p_actor uuid default null
 ) returns void language plpgsql security definer set search_path = '' as $$
 begin
   if p_user is null or public.is_silent() then return; end if;
-  if p_user = auth.uid() then return; end if;
+  if p_user = coalesce(p_actor, auth.uid()) then return; end if;
   if not private.is_active(p_user) then return; end if;
   if p_task is not null and not private.can_view_task(p_task, p_user) then return; end if;
   if p_task is null and p_project is not null and not private.can_view_project(p_project, p_user) then return; end if;
 
   insert into public.notifications (user_id, actor_id, type, task_id, project_id, comment_id, goal_id, data)
-  values (p_user, auth.uid(), p_type, p_task, p_project, p_comment, p_goal, coalesce(p_data, '{}'));
+  values (p_user, coalesce(p_actor, auth.uid()), p_type, p_task, p_project, p_comment, p_goal, coalesce(p_data, '{}'));
 end;
 $$;
 
@@ -889,7 +897,7 @@ $$;
 -- =============================================================================
 revoke execute on function public.handle_new_user() from public, anon, authenticated;
 revoke execute on function public.handle_user_updated() from public, anon, authenticated;
-revoke execute on function private.notify(uuid, text, uuid, uuid, uuid, jsonb, uuid) from public, anon, authenticated;
+revoke execute on function private.notify(uuid, text, uuid, uuid, uuid, jsonb, uuid, uuid) from public, anon, authenticated;
 revoke execute on function private.log_activity(uuid, text, jsonb) from public, anon, authenticated;
 revoke execute on function private.run_rules(public.tasks, public.tasks, text, uuid, jsonb) from public, anon, authenticated;
 revoke execute on function public.duplicate_project(uuid, text, boolean, boolean) from public, anon;

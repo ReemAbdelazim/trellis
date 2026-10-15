@@ -2,7 +2,8 @@
 // the service role. Every action first verifies the caller is an active admin.
 import { HttpError, json, readJson, serve } from "../_shared/http.ts";
 import { requireAdmin, serviceClient, SUPABASE_URL } from "../_shared/supabase.ts";
-import { appUrl, emailEnabled, emailLayout, escapeHtml, sendEmail } from "../_shared/email.ts";
+import { appUrl, emailEnabled, sendEmail } from "../_shared/email.ts";
+import { simpleEmail } from "../_shared/email-templates.ts";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -82,12 +83,16 @@ serve(async (req) => {
     case "test-email": {
       const sent = await sendEmail({
         to: caller.email,
-        subject: "Seeds Tasks test email",
-        html: emailLayout("Email is working", "<p>Notification emails from Seeds Tasks will look like this.</p>", {
-          label: "Open Seeds Tasks",
-          url: appUrl("/home"),
-        }),
-        text: `Email is working. ${appUrl("/home")}`,
+        ...simpleEmail(
+          { appUrl },
+          {
+            subject: "Trellis test email",
+            title: "Email is working",
+            paragraphs: ["Notification emails from Trellis will come from this address."],
+            cta: { label: "Open Trellis", url: appUrl("/home/") },
+            footerReason: "You sent this test from the Admin console.",
+          },
+        ),
       });
       if (!sent) throw new HttpError(400, "The email could not be sent. Check the Gmail function secrets.");
       return json({ ok: true });
@@ -102,16 +107,22 @@ serve(async (req) => {
         .maybeSingle();
       if (!inv || inv.accepted_at) throw new HttpError(404, "Invitation not found");
       const projectName = (inv.projects as { name?: string } | null)?.name ?? null;
+      const inviter = caller.fullName || "A teammate";
       const sent = await sendEmail({
         to: inv.email,
-        subject: `Reminder: you're invited to Seeds Tasks`,
-        html: emailLayout(
-          "You're invited",
-          `<p>${escapeHtml(caller.fullName || "A teammate")} invited you${projectName ? ` to <b>${escapeHtml(projectName)}</b>` : ""} on Seeds Tasks.</p>
-<p>Sign in with Google or Microsoft using <b>${escapeHtml(inv.email)}</b>.</p>`,
-          { label: "Open Seeds Tasks", url: appUrl("/login") },
+        ...simpleEmail(
+          { appUrl },
+          {
+            subject: `Reminder: ${inviter} invited you to Trellis`,
+            title: projectName ? `Join ${projectName} on Trellis` : "Join your team on Trellis",
+            paragraphs: [
+              `${inviter} invited you to Trellis${projectName ? `, to work on ${projectName}` : ""}.`,
+              `Sign in with Google, Microsoft or a password, using ${inv.email}.`,
+            ],
+            cta: { label: "Accept invite", url: appUrl(`/login/?next=${encodeURIComponent(inv.project_id ? `/project/?id=${inv.project_id}` : "/home/")}`) },
+            footerReason: "You're getting this because someone invited you.",
+          },
         ),
-        text: `You're invited to Seeds Tasks. Sign in with Google or Microsoft using ${inv.email}: ${appUrl("/login")}`,
       });
       if (!sent) throw new HttpError(400, "Email isn't set up, or sending failed");
       return json({ ok: true });

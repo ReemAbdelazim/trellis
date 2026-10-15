@@ -65,7 +65,7 @@ export function EmailTab() {
         title="Status"
         description={
           ready
-            ? "Connected. @mentions are emailed hourly; everyone gets a morning digest of unread items."
+            ? "Connected. Task updates go out hourly; daily updates around 8am."
             : "Finish the steps below to turn on email."
         }
         action={
@@ -92,7 +92,7 @@ export function EmailTab() {
           />
           <StatusLine
             ok={s.deliveryConnected}
-            title={s.deliveryConnected ? "Hourly delivery is connected" : "Hourly delivery isn't connected"}
+            title={s.deliveryConnected ? "Scheduled delivery is connected" : "Scheduled delivery isn't connected"}
             detail={s.deliveryConnected && s.connectedAt ? `Connected ${timeAgo(s.connectedAt)}.` : "Click “Connect email delivery” below."}
           />
         </div>
@@ -121,7 +121,7 @@ export function EmailTab() {
           <li>
             Store the printed secrets in Supabase (never in GitHub), plus the site address:
             <pre className="mt-1.5 overflow-x-auto rounded-md bg-surface-2 p-2 text-[12px] text-text">
-              npx supabase secrets set APP_URL=https://you.github.io/seeds-tasks
+              npx supabase secrets set APP_URL=https://you.github.io/trellis
             </pre>
           </li>
           <li>

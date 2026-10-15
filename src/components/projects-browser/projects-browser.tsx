@@ -94,7 +94,7 @@ export function ProjectsBrowser() {
         <div>
           <h1 className="text-xl font-semibold">Projects</h1>
           <p className="text-sm text-muted">
-            {isGuest ? "Projects that have been shared with you." : "Every project you can see across Seeds."}
+            {isGuest ? "Projects that have been shared with you." : "Every project you can see."}
           </p>
         </div>
         {!isGuest && (

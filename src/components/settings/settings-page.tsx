@@ -31,7 +31,7 @@ export function SettingsPage() {
     <div className="mx-auto w-full max-w-3xl space-y-5 px-4 py-6 sm:px-6">
       <div>
         <h1 className="text-xl font-semibold">Profile &amp; notifications</h1>
-        <p className="text-sm text-muted">How you appear to teammates and how Seeds Tasks reaches you.</p>
+        <p className="text-sm text-muted">How you appear to teammates and how Trellis reaches you.</p>
       </div>
       <ProfileCard key={`${profile.full_name}|${profile.title ?? ""}`} profile={profile} />
       <NotificationsCard profile={profile} />
@@ -39,7 +39,7 @@ export function SettingsPage() {
       <AppearanceCard />
       <SettingsCard title="Session">
         <div className="flex items-center justify-between gap-4 py-3">
-          <p className="text-sm text-muted">Sign out of Seeds Tasks on this device.</p>
+          <p className="text-sm text-muted">Sign out of Trellis on this device.</p>
           <Button onClick={() => signOut()}>
             <LogOut size={14} /> Sign out
           </Button>
@@ -136,12 +136,22 @@ function readDeviceZone() {
   }
 }
 
+/** Matches the kinds read by supabase/functions/notifications. */
+const EMAIL_KINDS = [
+  { key: "mentions", title: "Mentions", description: "Someone @mentions you in a comment or description." },
+  { key: "assigned", title: "Assignments", description: "Someone assigns you a task." },
+  { key: "comments", title: "Comments", description: "New comments on tasks you follow. One email thread per task." },
+  { key: "daily", title: "Daily update", description: "Tasks due soon or overdue, around 8am." },
+  { key: "invites", title: "Accepted invites", description: "Someone you invited joins." },
+] as const;
+
 function NotificationsCard({ profile }: { profile: Profile }) {
   const update = useUpdateMyProfile();
   const zones = useSyncExternalStore(noopSubscribe, readZones, () => NO_ZONES);
   const guess = useSyncExternalStore(noopSubscribe, readDeviceZone, () => "");
   const current = profile.timezone ?? "";
   const options = current && !zones.includes(current) ? [current, ...zones] : zones;
+  const prefs = (profile.email_prefs ?? {}) as Record<string, boolean>;
 
   const save = (patch: Partial<Profile>, message: string) =>
     update.mutate(
@@ -155,11 +165,7 @@ function NotificationsCard({ profile }: { profile: Profile }) {
   return (
     <SettingsCard title="Notifications" description="You always see notifications in your Inbox.">
       <div className="divide-y divide-border">
-        <SettingRow
-          htmlFor="email-notifications"
-          title="Email notifications"
-          description="An email within the hour when someone @mentions you, and a morning digest of anything still unread in your Inbox."
-        >
+        <SettingRow htmlFor="email-notifications" title="Email notifications" description="Turn off to stop every email below.">
           <Switch
             id="email-notifications"
             checked={profile.email_notifications}
@@ -167,13 +173,23 @@ function NotificationsCard({ profile }: { profile: Profile }) {
             onChange={(v) => save({ email_notifications: v }, v ? "Email notifications on" : "Email notifications off")}
           />
         </SettingRow>
+        {EMAIL_KINDS.map((kind) => (
+          <SettingRow key={kind.key} htmlFor={`email-${kind.key}`} title={kind.title} description={kind.description} inset>
+            <Switch
+              id={`email-${kind.key}`}
+              checked={profile.email_notifications && prefs[kind.key] !== false}
+              disabled={update.isPending || !profile.email_notifications}
+              onChange={(v) => save({ email_prefs: { ...prefs, [kind.key]: v } }, `${kind.title} emails ${v ? "on" : "off"}`)}
+            />
+          </SettingRow>
+        ))}
         <SettingRow
           htmlFor="timezone"
           title="Time zone"
           description={
             guess && guess !== current ? (
               <>
-                Your morning digest arrives around 8am in this time zone. Your device is on{" "}
+                Your daily update arrives around 8am in this time zone. Your device is on{" "}
                 <button
                   type="button"
                   className="text-accent hover:underline"
@@ -184,7 +200,7 @@ function NotificationsCard({ profile }: { profile: Profile }) {
                 .
               </>
             ) : (
-              "Your morning digest arrives around 8am in this time zone."
+              "Your daily update arrives around 8am in this time zone."
             )
           }
         >

@@ -16,7 +16,7 @@ import type { ProjectPrivacy } from "@/types/models";
 import { routes } from "@/lib/routes";
 
 const PRIVACY: { value: ProjectPrivacy; label: string; hint: string; icon: React.ReactNode }[] = [
-  { value: "public", label: "Workspace", hint: "Everyone at Seeds can find and edit", icon: <Globe size={15} /> },
+  { value: "public", label: "Workspace", hint: "Everyone in the workspace can find and edit", icon: <Globe size={15} /> },
   { value: "team", label: "Team", hint: "Members of the selected team", icon: <Users size={15} /> },
   { value: "private", label: "Private", hint: "Only people you invite", icon: <Lock size={15} /> },
 ];
@@ -177,7 +177,7 @@ export function CreateProjectDialog({
               </div>
             </div>
             {privacy === "team" && !teamId && (
-              <p className="text-xs text-warning">Pick a team, or everyone at Seeds will have access.</p>
+              <p className="text-xs text-warning">Pick a team, or everyone in the workspace will have access.</p>
             )}
           </>
         )}

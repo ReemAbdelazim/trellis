@@ -16,7 +16,7 @@ import { sendInvitation } from "@/lib/functions";
 import type { UserRole } from "@/types/models";
 
 /**
- * Invite someone by email. Seeds-domain people don't need an invite — they can
+ * Invite someone by email. People on an allowed domain don't need an invite — they can
  * just sign in. Outside people become guests (admins may invite members/admins).
  */
 export function InviteDialog({
@@ -66,7 +66,7 @@ export function InviteDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Invite people"
-      description="Anyone with a Seeds email can already sign in. Invite outside partners as guests."
+      description="Invite outside partners as guests."
       footer={
         <>
           <Button onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -90,7 +90,7 @@ export function InviteDialog({
           />
           {isOrgDomain && (
             <p className="mt-1.5 text-xs text-muted">
-              {domain} is a Seeds domain — they can sign in right away. An invite still adds them to the project below.
+              {domain} people can already sign in. The invite adds them to the project below.
             </p>
           )}
         </div>

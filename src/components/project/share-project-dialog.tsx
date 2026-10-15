@@ -62,7 +62,7 @@ export function ShareProjectDialog({
                 className="h-8 flex-1 border-0 px-0 focus:ring-0"
                 aria-label="Project privacy"
               >
-                <option value="public">Workspace — everyone at Seeds can find and edit</option>
+                <option value="public">Workspace — everyone can find and edit</option>
                 <option value="team">Team — members of {team?.name ?? "the project's team"}</option>
                 <option value="private">Private — only members listed below</option>
               </Select>

@@ -1,4 +1,4 @@
-# Self-hosting Seeds Tasks
+# Self-hosting Trellis
 
 This sets up your own copy on free tiers:
 - **GitHub Pages**: the website
@@ -12,7 +12,7 @@ password, plus an authenticator app.
 Throughout this guide:
 
 - `<ref>` is your Supabase project ref (the `abcd1234` in `https://abcd1234.supabase.co`)
-- `<site>` is your site's address, e.g. `https://your-org.github.io/seeds-tasks`
+- `<site>` is your site's address, e.g. `https://your-org.github.io/trellis`
 
 You'll need [Node.js 22+](https://nodejs.org) and Git for a few commands.
 
@@ -58,7 +58,7 @@ npm install
 
 ## 3. Google sign-in
 
-1. <https://console.cloud.google.com> → create a project (e.g. "Seeds Tasks sign-in").
+1. <https://console.cloud.google.com> → create a project (e.g. "Trellis sign-in").
 2. **APIs & Services → OAuth consent screen**: user type **External**, so invited guests with
    personal Gmail can sign in. Scopes: `openid`, `email`, `profile`. **Publish** the app; these
    scopes need no Google review.
@@ -81,11 +81,11 @@ npm install
 ## 5. Email through Gmail
 
 All email goes out from one Google Workspace account, e.g. `tasks@yourorg.org`, through the Gmail
-API, at about 2,000 emails a day. That covers @mention emails, morning digests, invitations,
+API, at about 2,000 emails a day. That covers task emails, daily updates, welcome emails, invitations,
 password resets and email confirmations.
 
 1. **Google Cloud project for sending.** <https://console.cloud.google.com> → create a project (e.g.
-   "Seeds Tasks mailer") *in your Workspace organization*.
+   "Trellis mailer") *in your Workspace organization*.
    - **APIs & Services → Library**: enable the **Gmail API**.
    - **OAuth consent screen**: user type **Internal**, so the authorization never expires.
    - **Credentials → Create credentials → OAuth client ID → Desktop app.**
@@ -94,7 +94,7 @@ password resets and email confirmations.
    GMAIL_CLIENT_ID=... GMAIL_CLIENT_SECRET=... npm run setup:gmail
    ```
    It prints a `npx supabase secrets set ...` command. Set `EMAIL_FROM` to that account (e.g.
-   `"Seeds Tasks <tasks@yourorg.org>"`), add `APP_URL=<site>`, and run the command. These secrets
+   `"Trellis <tasks@yourorg.org>"`), add `APP_URL=<site>`, and run the command. These secrets
    live only in Supabase, never in GitHub.
 3. **Account emails (password reset, confirm email).** In Supabase → **Authentication → Hooks →
    Send Email**, choose **HTTPS**, set the URL to `https://<ref>.supabase.co/functions/v1/auth-email`,

@@ -64,7 +64,7 @@ export async function signOut() {
 export function authErrorMessage(raw: string | null | undefined): string | null {
   if (!raw) return null;
   if (/SEEDS_NOT_AUTHORIZED|Database error (saving|creating) new user/i.test(raw)) {
-    return "That account isn't part of the Seeds workspace yet. Use your Seeds email, or ask an admin to invite you as a guest.";
+    return "That account isn't part of this workspace yet. Use your work email, or ask an admin to invite you as a guest.";
   }
   if (/invalid login credentials/i.test(raw)) return "That email and password don't match.";
   if (/email not confirmed/i.test(raw)) return "Confirm your email first: we sent you a link when you created the account.";

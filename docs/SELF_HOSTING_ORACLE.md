@@ -1,6 +1,6 @@
 # Moving to your own server (Oracle Cloud Always Free)
 
-Supabase is open source, so the same Seeds Tasks database, sign-in and functions can run on a server
+Supabase is open source, so the same Trellis database, sign-in and functions can run on a server
 you control. Oracle Cloud's **Always Free** plan includes a server with **4 CPU cores, 24 GB of
 memory and 200 GB of disk**. That's more than Supabase's $25/month plan, at no cost. None of the
 app's code changes.
@@ -54,8 +54,8 @@ Edit `.env` following Supabase's guide: generate a new `POSTGRES_PASSWORD`, `JWT
 `SERVICE_ROLE_KEY` and dashboard password, and set:
 
 ```
-SITE_URL=https://your-org.github.io/seeds-tasks
-ADDITIONAL_REDIRECT_URLS=https://your-org.github.io/seeds-tasks/**
+SITE_URL=https://your-org.github.io/trellis
+ADDITIONAL_REDIRECT_URLS=https://your-org.github.io/trellis/**
 API_EXTERNAL_URL=https://api.yourorg.org
 SUPABASE_PUBLIC_URL=https://api.yourorg.org
 ENABLE_EMAIL_SIGNUP=true

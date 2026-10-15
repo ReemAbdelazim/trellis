@@ -119,10 +119,14 @@ export function Sidebar() {
 
   return (
     <nav className="flex h-full flex-col bg-sidebar text-sidebar-text">
-      <div className="flex h-12 shrink-0 items-center gap-2 px-4">
-        <Logo size={24} />
-        <span className="text-[15px] font-semibold tracking-tight">Seeds Tasks</span>
-      </div>
+      <Link
+        href={routes.home}
+        aria-label="Trellis home"
+        className="mx-2 mt-3 mb-2 flex w-fit flex-col items-start gap-1 rounded-md px-2 py-1.5 hover:bg-sidebar-hover"
+      >
+        <Logo size={34} />
+        <span className="text-[15px] font-semibold tracking-tight">Trellis</span>
+      </Link>
       <div className="flex-1 overflow-y-auto px-2 pb-4 scrollbar-thin">
         <div className="space-y-px">
           <NavLink href="/home" icon={<Home size={15} />}>

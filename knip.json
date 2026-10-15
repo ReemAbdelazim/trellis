@@ -3,6 +3,6 @@
   "entry": ["src/app/**/{page,layout}.tsx", "scripts/*.mjs"],
   "project": ["src/**/*.{ts,tsx}", "scripts/**/*.mjs"],
   "ignore": ["src/types/database.ts"],
-  "ignoreDependencies": ["postcss", "tailwindcss"],
+  "ignoreDependencies": ["tailwindcss"],
   "rules": { "types": "off" }
 }

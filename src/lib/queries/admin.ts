@@ -107,7 +107,7 @@ export function useUpdateOrgSettings() {
 export interface EmailStatus {
   /** Gmail sender and app URL are set as function secrets. */
   emailConfigured: boolean;
-  /** The hourly database job knows where to send notifications. */
+  /** The scheduled database jobs know where to send notifications. */
   deliveryConnected: boolean;
   connectedAt: string | null;
   appUrl: string | null;
