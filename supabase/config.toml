@@ -452,3 +452,11 @@ enabled = true
 client_id = "511939980313-cani96m1pq9rfa0a2rtgpg5e7rprgkbp.apps.googleusercontent.com"
 secret = "env(SUPABASE_AUTH_GOOGLE_SECRET)"
 skip_nonce_check = true
+
+# Password-reset and confirmation emails go through the auth-email function (Gmail).
+# The signing secret also comes from the environment when pushing:
+#   SEND_EMAIL_HOOK_SECRET="v1,whsec_..."
+[remotes.production.auth.hook.send_email]
+enabled = true
+uri = "https://rawiexmioxlqffdmbwka.supabase.co/functions/v1/auth-email"
+secrets = "env(SEND_EMAIL_HOOK_SECRET)"
