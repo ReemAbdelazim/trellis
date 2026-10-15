@@ -435,3 +435,12 @@ verify_jwt = false
 # Supabase Auth "Send Email" hook target; called by Supabase with a signed payload.
 [functions.auth-email]
 verify_jwt = false
+
+# Production project (`npx supabase config push`). Everything above applies,
+# with these overrides. Forks: change the project ref and site address.
+[remotes.production]
+project_id = "rawiexmioxlqffdmbwka"
+
+[remotes.production.auth]
+site_url = "https://reemabdelazim.github.io/trellis"
+additional_redirect_urls = ["https://reemabdelazim.github.io/trellis/**"]
