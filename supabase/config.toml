@@ -444,3 +444,11 @@ project_id = "rawiexmioxlqffdmbwka"
 [remotes.production.auth]
 site_url = "https://reemabdelazim.github.io/trellis"
 additional_redirect_urls = ["https://reemabdelazim.github.io/trellis/**"]
+
+# Secret comes from the environment when pushing:
+#   SUPABASE_AUTH_GOOGLE_SECRET=... npx supabase config push
+[remotes.production.auth.external.google]
+enabled = true
+client_id = "511939980313-cani96m1pq9rfa0a2rtgpg5e7rprgkbp.apps.googleusercontent.com"
+secret = "env(SUPABASE_AUTH_GOOGLE_SECRET)"
+skip_nonce_check = true
