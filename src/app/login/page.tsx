@@ -20,7 +20,7 @@ export default function LoginPage() {
           </Suspense>
         </div>
         <p className="mt-6 text-center text-xs text-faint">
-          Use your Seeds Google or Microsoft account. Guests use the email address they were invited with.
+          Use your Seeds email. Guests use the address they were invited with. Every account uses two-factor sign-in.
         </p>
       </div>
     </main>

@@ -29,7 +29,6 @@ function normalize(row: PortfolioItem): PortfolioItem {
 }
 
 const canEditKey = (id: string) => [...qk.portfolio(id), "can-edit"] as const;
-const latestStatusKey = (ids: string[]) => ["project-status-updates", "latest", [...ids].sort().join(",")] as const;
 
 // ---------------------------------------------------------------------------
 // Queries
@@ -77,7 +76,7 @@ export function useCanEditPortfolio(id: string | null | undefined) {
 /** Latest status-update timestamp per project (for portfolio tables). */
 export function useLatestProjectStatusDates(projectIds: string[]) {
   return useQuery({
-    queryKey: latestStatusKey(projectIds),
+    queryKey: qk.latestStatusUpdates(projectIds),
     enabled: projectIds.length > 0,
     queryFn: async (): Promise<Map<string, string>> => {
       const { data, error } = await supabase()

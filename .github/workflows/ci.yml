@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   web:
-    name: Lint, typecheck, build
+    name: Lint, typecheck, unused code, build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,6 +25,8 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      - name: No unused files, exports or dependencies
+        run: npx --yes knip@5
       - run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co

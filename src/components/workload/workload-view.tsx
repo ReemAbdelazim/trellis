@@ -13,11 +13,10 @@ import { useProjects } from "@/lib/queries/projects";
 import { usePortfolios } from "@/lib/queries/portfolios";
 import { useTasksInRange } from "@/lib/queries/workload";
 import { useRealtime } from "@/lib/queries/realtime";
-import { useLocalFlag } from "@/lib/use-local-flag";
+import { useLocalFlag, useLocalNumber } from "@/lib/use-local-storage";
 import { cn, toISODate } from "@/lib/utils";
 import { buildWorkload, UNASSIGNED } from "./workload-model";
 import { WorkloadGrid, type WorkloadRow } from "./workload-grid";
-import { useLocalNumber } from "./use-local-number";
 
 const RANGE_KEY = ["tasks", "range"] as const;
 

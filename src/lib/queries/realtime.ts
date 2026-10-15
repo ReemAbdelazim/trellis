@@ -16,6 +16,8 @@ type Table =
   | "task_dependencies"
   | "projects";
 
+const FALLBACK_POLL_MS = 30_000;
+
 interface Options {
   table: Table;
   /** PostgREST-style filter, e.g. `project_id=eq.<uuid>` */
@@ -46,14 +48,29 @@ export function useRealtime({ table, filter, invalidate, enabled = true }: Optio
         keysRef.current.forEach((queryKey) => qc.invalidateQueries({ queryKey }));
       }, 250);
     };
+    // If live updates are unavailable (e.g. the plan's connection limit is reached),
+    // fall back to refreshing on a timer until the channel connects again.
+    let poll: ReturnType<typeof setInterval> | undefined;
+    const startPolling = () => {
+      poll ??= setInterval(refresh, FALLBACK_POLL_MS);
+    };
+    const stopPolling = () => {
+      clearInterval(poll);
+      poll = undefined;
+    };
+
     const channel = supabase
       .channel(`rt:${table}:${filter ?? "all"}:${Math.random().toString(36).slice(2)}`)
       .on("postgres_changes", { event: "*", schema: "public", table, filter }, refresh);
     // Deletes can't be filtered by column, so listen for them separately.
     if (filter) channel.on("postgres_changes", { event: "DELETE", schema: "public", table }, refresh);
-    channel.subscribe();
+    channel.subscribe((status) => {
+      if (status === "SUBSCRIBED") stopPolling();
+      else startPolling();
+    });
     return () => {
       clearTimeout(timer);
+      stopPolling();
       supabase.removeChannel(channel);
     };
   }, [qc, table, filter, enabled]);

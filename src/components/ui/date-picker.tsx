@@ -20,7 +20,7 @@ import { cn, toDate, toISODate } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import { Button } from "./button";
 
-export function Calendar({
+function Calendar({
   value,
   onSelect,
   rangeStart,

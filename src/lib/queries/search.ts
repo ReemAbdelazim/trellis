@@ -29,7 +29,7 @@ export function useDebounced<T>(value: T, ms = 200): T {
 }
 
 /** Escape LIKE wildcards so user input is matched literally. */
-export function likePattern(q: string) {
+function likePattern(q: string) {
   return `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 }
 

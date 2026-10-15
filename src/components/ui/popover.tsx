@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 export const Popover = P.Root;
 export const PopoverTrigger = P.Trigger;
 export const PopoverAnchor = P.Anchor;
-export const PopoverClose = P.Close;
 
 export function PopoverContent({
   className,

@@ -3,10 +3,11 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
-import { MoreHorizontal, Search, Trash2, UserCheck, UserX } from "lucide-react";
+import { MoreHorizontal, Search, ShieldOff, Trash2, UserCheck, UserX } from "lucide-react";
 import { useMe } from "@/lib/queries/me";
 import { useProfiles } from "@/lib/queries/people";
 import { useRemoveUser, useSetProfileAccess } from "@/lib/queries/admin";
+import { callFunction } from "@/lib/functions";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
@@ -27,6 +28,21 @@ export function PeopleTab() {
   const [role, setRole] = useState<"all" | UserRole>("all");
   const [status, setStatus] = useState<"all" | Profile["status"]>("all");
   const [removing, setRemoving] = useState<Profile | null>(null);
+  const [resettingMfa, setResettingMfa] = useState<Profile | null>(null);
+  const [resetPending, setResetPending] = useState(false);
+
+  const resetMfa = async (p: Profile) => {
+    setResetPending(true);
+    try {
+      await callFunction("admin", { action: "reset-mfa", userId: p.id });
+      toast.success(`${p.full_name || p.email} will set up a new authenticator at their next sign-in`);
+      setResettingMfa(null);
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setResetPending(false);
+    }
+  };
 
   const counts = useMemo(() => {
     const active = people.filter((p) => p.status === "active");
@@ -229,6 +245,9 @@ export function PeopleTab() {
                               Reactivate
                             </MenuItem>
                           )}
+                          <MenuItem icon={<ShieldOff size={14} />} onSelect={() => setResettingMfa(p)}>
+                            Reset two-factor…
+                          </MenuItem>
                           <MenuSeparator />
                           <MenuItem
                             danger
@@ -250,6 +269,16 @@ export function PeopleTab() {
         {list.length === 0 && <EmptyState title="No one matches" description="Try a different search or filter." className="py-10" />}
       </div>
 
+      <ConfirmDialog
+        open={!!resettingMfa}
+        onOpenChange={(o) => !o && setResettingMfa(null)}
+        title={`Reset two-factor for ${resettingMfa?.full_name || resettingMfa?.email}?`}
+        description="Use this when someone has lost access to their authenticator app. They'll be signed out everywhere and asked to set up a new authenticator the next time they sign in."
+        confirmLabel="Reset two-factor"
+        danger={false}
+        pending={resetPending}
+        onConfirm={() => resettingMfa && resetMfa(resettingMfa)}
+      />
       <ConfirmDialog
         open={!!removing}
         onOpenChange={(o) => !o && setRemoving(null)}

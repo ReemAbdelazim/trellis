@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
  * Calls a Supabase Edge Function (supabase/functions/<name>) as the signed-in
  * user and surfaces its `{ error }` message on failure.
  */
-export async function callFunction<T>(name: "invite" | "admin", body: Record<string, unknown>): Promise<T> {
+export async function callFunction<T>(name: "invite" | "admin" | "files", body: Record<string, unknown>): Promise<T> {
   const { data, error } = await createClient().functions.invoke<T>(name, { body });
   if (error) {
     if (error instanceof FunctionsHttpError) {

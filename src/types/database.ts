@@ -7,14 +7,14 @@ export type Database = {
           Tables: {
             "attachments": {
                   Row: {
-                    "created_at": string,"file_name": string,"id": string,"mime_type": string | null,"size_bytes": number | null,"storage_path": string,"task_id": string,"uploader_id": string | null
+                    "created_at": string,"file_name": string,"id": string,"mime_type": string | null,"size_bytes": number | null,"storage_backend": string,"storage_path": string,"task_id": string,"uploader_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"file_name": string,"id"?: string,"mime_type"?: string | null,"size_bytes"?: number | null,"storage_path": string,"task_id": string,"uploader_id"?: string | null
+                    "created_at"?: string,"file_name": string,"id"?: string,"mime_type"?: string | null,"size_bytes"?: number | null,"storage_backend"?: string,"storage_path": string,"task_id": string,"uploader_id"?: string | null
                   }
                   Update: {
-                    "created_at"?: string,"file_name"?: string,"id"?: string,"mime_type"?: string | null,"size_bytes"?: number | null,"storage_path"?: string,"task_id"?: string,"uploader_id"?: string | null
+                    "created_at"?: string,"file_name"?: string,"id"?: string,"mime_type"?: string | null,"size_bytes"?: number | null,"storage_backend"?: string,"storage_path"?: string,"task_id"?: string,"uploader_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -73,12 +73,6 @@ isOneToOne: false
       foreignKeyName: "custom_fields_project_id_fkey"
       columns: ["project_id"]
 isOneToOne: false
-      referencedRelation: "project_stats"
-      referencedColumns: ["project_id"]
-    },{
-      foreignKeyName: "custom_fields_project_id_fkey"
-      columns: ["project_id"]
-isOneToOne: false
       referencedRelation: "projects"
       referencedColumns: ["id"]
     }
@@ -101,12 +95,6 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "goals"
       referencedColumns: ["id"]
-    },{
-      foreignKeyName: "goal_projects_project_id_fkey"
-      columns: ["project_id"]
-isOneToOne: false
-      referencedRelation: "project_stats"
-      referencedColumns: ["project_id"]
     },{
       foreignKeyName: "goal_projects_project_id_fkey"
       columns: ["project_id"]
@@ -201,12 +189,6 @@ isOneToOne: false
       foreignKeyName: "invitations_project_fk"
       columns: ["project_id"]
 isOneToOne: false
-      referencedRelation: "project_stats"
-      referencedColumns: ["project_id"]
-    },{
-      foreignKeyName: "invitations_project_fk"
-      columns: ["project_id"]
-isOneToOne: false
       referencedRelation: "projects"
       referencedColumns: ["id"]
     },{
@@ -251,12 +233,6 @@ isOneToOne: false
       foreignKeyName: "notifications_project_id_fkey"
       columns: ["project_id"]
 isOneToOne: false
-      referencedRelation: "project_stats"
-      referencedColumns: ["project_id"]
-    },{
-      foreignKeyName: "notifications_project_id_fkey"
-      columns: ["project_id"]
-isOneToOne: false
       referencedRelation: "projects"
       referencedColumns: ["id"]
     },{
@@ -275,14 +251,14 @@ isOneToOne: false
                   ]
                 },"org_settings": {
                   Row: {
-                    "allow_member_invites": boolean,"allowed_domains": (string)[],"id": number,"name": string,"updated_at": string
+                    "allow_member_invites": boolean,"allowed_domains": (string)[],"id": number,"name": string,"timezone": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "allow_member_invites"?: boolean,"allowed_domains"?: (string)[],"id"?: number,"name"?: string,"updated_at"?: string
+                    "allow_member_invites"?: boolean,"allowed_domains"?: (string)[],"id"?: number,"name"?: string,"timezone"?: string,"updated_at"?: string
                   }
                   Update: {
-                    "allow_member_invites"?: boolean,"allowed_domains"?: (string)[],"id"?: number,"name"?: string,"updated_at"?: string
+                    "allow_member_invites"?: boolean,"allowed_domains"?: (string)[],"id"?: number,"name"?: string,"timezone"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     
@@ -335,12 +311,6 @@ isOneToOne: false
       foreignKeyName: "portfolio_projects_project_id_fkey"
       columns: ["project_id"]
 isOneToOne: false
-      referencedRelation: "project_stats"
-      referencedColumns: ["project_id"]
-    },{
-      foreignKeyName: "portfolio_projects_project_id_fkey"
-      columns: ["project_id"]
-isOneToOne: false
       referencedRelation: "projects"
       referencedColumns: ["id"]
     }
@@ -367,14 +337,14 @@ isOneToOne: false
                   ]
                 },"profiles": {
                   Row: {
-                    "avatar_url": string | null,"created_at": string,"email": string,"email_notifications": boolean,"full_name": string,"id": string,"last_seen_at": string | null,"role": Database["public"]['Enums']["user_role"],"status": Database["public"]['Enums']["user_status"],"timezone": string | null,"title": string | null
+                    "avatar_url": string | null,"created_at": string,"email": string,"email_notifications": boolean,"full_name": string,"id": string,"last_digest_on": string | null,"last_seen_at": string | null,"role": Database["public"]['Enums']["user_role"],"status": Database["public"]['Enums']["user_status"],"timezone": string | null,"title": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "avatar_url"?: string | null,"created_at"?: string,"email": string,"email_notifications"?: boolean,"full_name"?: string,"id": string,"last_seen_at"?: string | null,"role"?: Database["public"]['Enums']["user_role"],"status"?: Database["public"]['Enums']["user_status"],"timezone"?: string | null,"title"?: string | null
+                    "avatar_url"?: string | null,"created_at"?: string,"email": string,"email_notifications"?: boolean,"full_name"?: string,"id": string,"last_digest_on"?: string | null,"last_seen_at"?: string | null,"role"?: Database["public"]['Enums']["user_role"],"status"?: Database["public"]['Enums']["user_status"],"timezone"?: string | null,"title"?: string | null
                   }
                   Update: {
-                    "avatar_url"?: string | null,"created_at"?: string,"email"?: string,"email_notifications"?: boolean,"full_name"?: string,"id"?: string,"last_seen_at"?: string | null,"role"?: Database["public"]['Enums']["user_role"],"status"?: Database["public"]['Enums']["user_status"],"timezone"?: string | null,"title"?: string | null
+                    "avatar_url"?: string | null,"created_at"?: string,"email"?: string,"email_notifications"?: boolean,"full_name"?: string,"id"?: string,"last_digest_on"?: string | null,"last_seen_at"?: string | null,"role"?: Database["public"]['Enums']["user_role"],"status"?: Database["public"]['Enums']["user_status"],"timezone"?: string | null,"title"?: string | null
                   }
                   Relationships: [
                     
@@ -392,12 +362,6 @@ isOneToOne: false
                   }
                   Relationships: [
                     {
-      foreignKeyName: "project_favorites_project_id_fkey"
-      columns: ["project_id"]
-isOneToOne: false
-      referencedRelation: "project_stats"
-      referencedColumns: ["project_id"]
-    },{
       foreignKeyName: "project_favorites_project_id_fkey"
       columns: ["project_id"]
 isOneToOne: false
@@ -424,12 +388,6 @@ isOneToOne: false
                   }
                   Relationships: [
                     {
-      foreignKeyName: "project_members_project_id_fkey"
-      columns: ["project_id"]
-isOneToOne: false
-      referencedRelation: "project_stats"
-      referencedColumns: ["project_id"]
-    },{
       foreignKeyName: "project_members_project_id_fkey"
       columns: ["project_id"]
 isOneToOne: false
@@ -461,12 +419,6 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "profiles"
       referencedColumns: ["id"]
-    },{
-      foreignKeyName: "project_status_updates_project_id_fkey"
-      columns: ["project_id"]
-isOneToOne: false
-      referencedRelation: "project_stats"
-      referencedColumns: ["project_id"]
     },{
       foreignKeyName: "project_status_updates_project_id_fkey"
       columns: ["project_id"]
@@ -529,12 +481,6 @@ isOneToOne: false
       foreignKeyName: "rules_project_id_fkey"
       columns: ["project_id"]
 isOneToOne: false
-      referencedRelation: "project_stats"
-      referencedColumns: ["project_id"]
-    },{
-      foreignKeyName: "rules_project_id_fkey"
-      columns: ["project_id"]
-isOneToOne: false
       referencedRelation: "projects"
       referencedColumns: ["id"]
     }
@@ -552,12 +498,6 @@ isOneToOne: false
                   }
                   Relationships: [
                     {
-      foreignKeyName: "sections_project_id_fkey"
-      columns: ["project_id"]
-isOneToOne: false
-      referencedRelation: "project_stats"
-      referencedColumns: ["project_id"]
-    },{
       foreignKeyName: "sections_project_id_fkey"
       columns: ["project_id"]
 isOneToOne: false
@@ -775,12 +715,6 @@ isOneToOne: false
       foreignKeyName: "tasks_project_id_fkey"
       columns: ["project_id"]
 isOneToOne: false
-      referencedRelation: "project_stats"
-      referencedColumns: ["project_id"]
-    },{
-      foreignKeyName: "tasks_project_id_fkey"
-      columns: ["project_id"]
-isOneToOne: false
       referencedRelation: "projects"
       referencedColumns: ["id"]
     },{
@@ -840,15 +774,7 @@ isOneToOne: false
                 }
           }
           Views: {
-            "project_stats": {
-                  Row: {
-                    "completed_tasks": number | null,"last_activity_at": string | null,"overdue_tasks": number | null,"project_id": string | null,"total_tasks": number | null
-                  }
-                  ComputedFields: never
-                  Relationships: [
-                    
-                  ]
-                }
+            [_ in never]: never
           }
           Functions: {
             "can_comment_task":
@@ -875,6 +801,9 @@ isOneToOne: false
 "can_view_task":
 { Args: { "p_task": string }; Returns: boolean
                            },
+"configure_notifications":
+{ Args: { "p_secret": string,"p_url": string }; Returns: undefined
+                           },
 "duplicate_project":
 { Args: { "p_as_template"?: boolean,"p_include_tasks"?: boolean,"p_name": string,"p_project": string }; Returns: string
                            },
@@ -896,8 +825,22 @@ isOneToOne: false
 "is_team_admin":
 { Args: { "p_team": string }; Returns: boolean
                            },
+"my_followed_task_ids":
+{ Args: Record<PropertyKey, never>; Returns: (string)[]
+                           },
+"my_visible_project_ids":
+{ Args: Record<PropertyKey, never>; Returns: (string)[]
+                           },
+"notification_delivery_status":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "project_access":
 { Args: { "p_project": string }; Returns: string
+                           },
+"project_stats":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "completed_tasks": number,"last_activity_at": string,"overdue_tasks": number,"project_id": string,"total_tasks": number
+            }[]
                            },
 "try_uuid":
 { Args: { "p": string }; Returns: string

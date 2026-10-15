@@ -35,68 +35,91 @@ create trigger task_field_values_updated_at before update on public.task_field_v
 
 -- =============================================================================
 -- Sign-up gate: allowed domain → member, open invitation → invited role,
--- otherwise the sign-in is rejected. The very first allowed-domain user is admin.
+-- otherwise the account is rejected. The very first allowed-domain user is admin.
+--
+-- Google/Microsoft accounts arrive with a verified email and get a profile at
+-- once. Email/password accounts are checked at sign-up but only get a profile
+-- when they confirm their address, so nobody can claim an email they don't own.
 -- =============================================================================
-create or replace function public.handle_new_user()
-returns trigger language plpgsql security definer set search_path = '' as $$
+
+-- Role an email may join with, or an exception if it isn't allowed in.
+create or replace function private.workspace_role_for(p_email text)
+returns public.user_role language plpgsql stable security definer set search_path = '' as $$
 declare
-  v_email text := lower(coalesce(new.email, ''));
-  v_domain text := split_part(lower(coalesce(new.email, '')), '@', 2);
-  v_domains text[];
-  v_verified boolean;
-  v_role public.user_role;
+  v_email text := lower(coalesce(p_email, ''));
   v_invite public.invitations%rowtype;
 begin
-  select allowed_domains into v_domains from public.org_settings where id = 1;
-
-  -- OAuth providers report email_verified in the identity claims. Email/password users can only
-  -- be created by an admin (the email provider is disabled in production) and must still confirm.
-  v_verified := new.email_confirmed_at is not null
-    or coalesce((new.raw_user_meta_data ->> 'email_verified')::boolean, false)
-    or coalesce(new.raw_app_meta_data ->> 'provider', '') = 'email';
-
-  if v_email = '' or not v_verified then
-    raise exception 'SEEDS_NOT_AUTHORIZED: a verified email address is required';
+  if v_email = '' then
+    raise exception 'SEEDS_NOT_AUTHORIZED: an email address is required';
   end if;
 
   select * into v_invite from public.invitations
     where lower(email) = v_email and accepted_at is null
     order by created_at desc limit 1;
 
-  if v_domain = any (select lower(d) from unnest(v_domains) d) then
-    if not exists (select 1 from public.profiles where role = 'admin') then
-      v_role := 'admin';
-    elsif v_invite.id is not null and v_invite.role = 'admin' then
-      v_role := 'admin';
-    else
-      v_role := 'member';
+  if split_part(v_email, '@', 2) = any (select lower(d) from public.org_settings, unnest(allowed_domains) d where id = 1) then
+    if not exists (select 1 from public.profiles where role = 'admin') or v_invite.role = 'admin' then
+      return 'admin';
     end if;
+    return 'member';
   elsif v_invite.id is not null then
-    v_role := v_invite.role;
-  else
-    raise exception 'SEEDS_NOT_AUTHORIZED: % is not a member of this workspace', v_email;
+    return v_invite.role;
   end if;
+  raise exception 'SEEDS_NOT_AUTHORIZED: % is not a member of this workspace', v_email;
+end;
+$$;
 
+-- Creates the profile for a verified account and applies its invitation.
+create or replace function private.provision_profile(p_user auth.users)
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+  v_email text := lower(p_user.email);
+  v_role public.user_role := private.workspace_role_for(v_email);
+  v_invite public.invitations%rowtype;
+begin
   insert into public.profiles (id, email, full_name, avatar_url, role)
   values (
-    new.id,
+    p_user.id,
     v_email,
-    coalesce(nullif(new.raw_user_meta_data ->> 'full_name', ''), nullif(new.raw_user_meta_data ->> 'name', ''), split_part(v_email, '@', 1)),
-    coalesce(new.raw_user_meta_data ->> 'avatar_url', new.raw_user_meta_data ->> 'picture'),
+    coalesce(nullif(p_user.raw_user_meta_data ->> 'full_name', ''), nullif(p_user.raw_user_meta_data ->> 'name', ''), split_part(v_email, '@', 1)),
+    coalesce(p_user.raw_user_meta_data ->> 'avatar_url', p_user.raw_user_meta_data ->> 'picture'),
     v_role
-  );
+  )
+  on conflict (id) do nothing;
 
-  if v_invite.id is not null then
-    update public.invitations set accepted_at = now() where lower(email) = v_email and accepted_at is null;
-    if v_invite.project_id is not null and private.can_edit_project(v_invite.project_id, v_invite.invited_by) then
-      insert into public.project_members (project_id, user_id, role)
-      values (v_invite.project_id, new.id, 'editor') on conflict do nothing;
-    end if;
-    if v_invite.team_id is not null and private.is_team_admin(v_invite.team_id, v_invite.invited_by) then
-      insert into public.team_members (team_id, user_id) values (v_invite.team_id, new.id) on conflict do nothing;
-    end if;
+  select * into v_invite from public.invitations
+    where lower(email) = v_email and accepted_at is null
+    order by created_at desc limit 1;
+  if v_invite.id is null then return; end if;
+
+  update public.invitations set accepted_at = now() where lower(email) = v_email and accepted_at is null;
+  if v_invite.project_id is not null and private.can_edit_project(v_invite.project_id, v_invite.invited_by) then
+    insert into public.project_members (project_id, user_id, role)
+    values (v_invite.project_id, p_user.id, 'editor') on conflict do nothing;
+  end if;
+  if v_invite.team_id is not null and private.is_team_admin(v_invite.team_id, v_invite.invited_by) then
+    insert into public.team_members (team_id, user_id) values (v_invite.team_id, p_user.id) on conflict do nothing;
+  end if;
+end;
+$$;
+
+create or replace function public.handle_new_user()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  -- Reject outsiders before anything is stored.
+  perform private.workspace_role_for(new.email);
+
+  if coalesce(new.raw_app_meta_data ->> 'provider', 'email') = 'email' then
+    -- Password account: the profile is created once the email is confirmed.
+    if new.email_confirmed_at is not null then perform private.provision_profile(new); end if;
+    return new;
   end if;
 
+  -- Google / Microsoft must vouch for the address.
+  if new.email_confirmed_at is null and not coalesce((new.raw_user_meta_data ->> 'email_verified')::boolean, false) then
+    raise exception 'SEEDS_NOT_AUTHORIZED: a verified email address is required';
+  end if;
+  perform private.provision_profile(new);
   return new;
 end;
 $$;
@@ -104,10 +127,13 @@ $$;
 create trigger on_auth_user_created after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- Keep name / avatar fresh from the identity provider on each sign-in.
+-- Provisions password accounts on confirmation; keeps avatar / last-seen fresh.
 create or replace function public.handle_user_updated()
 returns trigger language plpgsql security definer set search_path = '' as $$
 begin
+  if old.email_confirmed_at is null and new.email_confirmed_at is not null then
+    perform private.provision_profile(new);
+  end if;
   update public.profiles p set
     avatar_url = coalesce(new.raw_user_meta_data ->> 'avatar_url', new.raw_user_meta_data ->> 'picture', p.avatar_url),
     last_seen_at = case when new.last_sign_in_at is distinct from old.last_sign_in_at then now() else p.last_seen_at end

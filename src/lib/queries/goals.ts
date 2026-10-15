@@ -51,7 +51,7 @@ export interface ProgressContext {
 const clampPct = (n: number) => (Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0);
 
 /** Progress of a metric from start → target, as 0–100. */
-export function metricProgress(start: number, current: number, target: number) {
+function metricProgress(start: number, current: number, target: number) {
   const span = Number(target) - Number(start);
   if (span === 0) return Number(current) >= Number(target) ? 100 : 0;
   return clampPct(((Number(current) - Number(start)) / span) * 100);
@@ -92,7 +92,7 @@ export function goalProgress(goal: Goal, ctx: ProgressContext, seen: Set<string>
   }
 }
 
-export function buildProgressContext(
+function buildProgressContext(
   goals: Goal[],
   links: GoalProjectLink[],
   stats: Map<string, ProjectStats>,
@@ -178,7 +178,7 @@ export function useGoal(id: string | null | undefined) {
 }
 
 /** Every goal ↔ project link (small table) — used for progress and the detail page. */
-export function useGoalProjectLinks() {
+function useGoalProjectLinks() {
   return useQuery({
     queryKey: goalLinksKey,
     queryFn: async (): Promise<GoalProjectLink[]> => {

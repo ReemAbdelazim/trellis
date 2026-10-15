@@ -85,7 +85,7 @@ export function EmailTab() {
                 </>
               ) : (
                 <>
-                  Set the <Code>RESEND_API_KEY</Code>, <Code>EMAIL_FROM</Code> and <Code>APP_URL</Code> function secrets.
+                  Set the Gmail sender secrets (<Code>npm run setup:gmail</Code>) and <Code>APP_URL</Code>.
                 </>
               )
             }
@@ -115,14 +115,13 @@ export function EmailTab() {
       <SettingsCard title="Setup guide">
         <ol className="list-decimal space-y-2.5 py-3 pl-5 text-sm text-muted marker:text-faint">
           <li>
-            Create a free account at <b className="text-text">resend.com</b>, verify your sending domain and create an API
-            key.
+            Emails are sent through Gmail from one Google Workspace account (about 2,000 a day). Create a Desktop OAuth
+            client with the Gmail API enabled, then run <Code>npm run setup:gmail</Code> and sign in as the sender.
           </li>
           <li>
-            From the project folder, store the secrets in Supabase (never in GitHub):
+            Store the printed secrets in Supabase (never in GitHub), plus the site address:
             <pre className="mt-1.5 overflow-x-auto rounded-md bg-surface-2 p-2 text-[12px] text-text">
-              npx supabase secrets set RESEND_API_KEY=re_… EMAIL_FROM=&quot;Seeds Tasks &lt;tasks@yourdomain&gt;&quot;
-              APP_URL=https://you.github.io/seeds-tasks
+              npx supabase secrets set APP_URL=https://you.github.io/seeds-tasks
             </pre>
           </li>
           <li>

@@ -72,7 +72,7 @@ const sectionName = (ctx: RuleContext, id: string | undefined) => {
   return s ? q(s.name) : "(deleted section)";
 };
 
-export function describeTrigger(type: RuleTrigger, c: RuleTriggerConfig, ctx: RuleContext): string {
+function describeTrigger(type: RuleTrigger, c: RuleTriggerConfig, ctx: RuleContext): string {
   switch (type) {
     case "task_added":
       return c.section_id ? `a task is added to ${sectionName(ctx, c.section_id)}` : "a task is added to this project";
@@ -99,7 +99,7 @@ function plural(n: number, word: string) {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
-export function describeAction(a: RuleAction, ctx: RuleContext): string {
+function describeAction(a: RuleAction, ctx: RuleContext): string {
   switch (a.type) {
     case "move_to_section":
       return a.section_id ? `move it to ${sectionName(ctx, a.section_id)}` : "move it to …";

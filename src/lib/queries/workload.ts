@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { qk } from "./keys";
-import type { TaskItem } from "./tasks";
+import { TASK_COLUMNS, type TaskItem } from "./tasks";
 import type { Task } from "@/types/models";
 
 const supabase = () => createClient();
@@ -20,7 +20,7 @@ export function useTasksInRange(start: string, end: string, enabled = true) {
     queryFn: async (): Promise<TaskItem[]> => {
       const { data, error } = await supabase()
         .from("tasks")
-        .select("*")
+        .select(TASK_COLUMNS)
         .eq("completed", false)
         .gte("due_date", start)
         .or(`due_date.lte.${end},start_date.lte.${end}`)

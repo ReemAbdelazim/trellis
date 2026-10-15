@@ -13,16 +13,16 @@ export const BUCKETS: { id: Bucket; label: string }[] = [
 export type CompletionFilter = "incomplete" | "completed" | "all";
 export type SortMode = "manual" | "due";
 
-export function bucketOf(t: Pick<TaskItem, "my_tasks_bucket">): Bucket {
+function bucketOf(t: Pick<TaskItem, "my_tasks_bucket">): Bucket {
   return (BUCKETS.some((b) => b.id === t.my_tasks_bucket) ? t.my_tasks_bucket : "recently_assigned") as Bucket;
 }
 
 /** Same order the server returns: position, then newest first. */
-export function manualOrder(a: TaskItem, b: TaskItem) {
+function manualOrder(a: TaskItem, b: TaskItem) {
   return a.my_tasks_position - b.my_tasks_position || b.created_at.localeCompare(a.created_at);
 }
 
-export function dueOrder(a: TaskItem, b: TaskItem) {
+function dueOrder(a: TaskItem, b: TaskItem) {
   if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date) || manualOrder(a, b);
   if (a.due_date) return -1;
   if (b.due_date) return 1;

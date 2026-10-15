@@ -2,8 +2,8 @@
 
 An original work-management app (Asana-style) for Seeds of Leadership.
 Stack: Next.js 16 (App Router, **static export** for GitHub Pages) · React 19 · Tailwind v4 ·
-Supabase (Postgres + RLS, Auth via Google/Microsoft with PKCE, Realtime, Storage, Edge Functions,
-pg_cron) · TanStack Query v5 · Radix UI (`radix-ui` package) · lucide-react · date-fns v4 · @dnd-kit · sonner.
+Supabase (Postgres + RLS, Auth: Google/Microsoft/password + TOTP two-factor, Realtime, Storage,
+Edge Functions, pg_cron) · Gmail API (email) · Cloudflare R2 (attachments, optional) · TanStack Query v5 · Radix UI (`radix-ui` package) · lucide-react · date-fns v4 · @dnd-kit · sonner.
 
 ## Runtime shape
 
@@ -14,14 +14,25 @@ pg_cron) · TanStack Query v5 · Radix UI (`radix-ui` package) · lucide-react �
   URL with `routes` from `src/lib/routes.ts`; use `absoluteUrl()` for copied links and redirects
   (it includes `NEXT_PUBLIC_BASE_PATH`).
 - `src/app/(app)/layout.tsx` wraps signed-in pages in `AuthGate` (`src/lib/queries/me.tsx`), which
-  resolves the session + profile, redirects to `/login` or `/no-access`, and provides `useMe()`.
-- Sign-in: `signInWithProvider()` in `src/lib/auth.ts` → provider → `/auth/callback` exchanges the
-  PKCE code. `signOut()` clears the session and reloads to `/login`.
+  resolves the session, two-factor level and profile; redirects to `/login`, `/mfa` or `/no-access`;
+  and provides `useMe()`.
+- Sign-in (`src/lib/auth.ts`): Google/Microsoft via PKCE (`signInWithProvider`), or email + password
+  (`signInWithPassword`, `signUpWithPassword`, `requestPasswordReset`). Account emails use the
+  implicit flow so their links work on any device. Every link lands on `/auth/callback`, which
+  handles `?code=`, `?token_hash=` and `#access_token`. `/mfa` sets up or verifies the authenticator
+  (`components/auth/mfa.tsx`); `/auth/reset` sets a new password.
 - Privileged work runs in **Edge Functions** (`supabase/functions/`, Deno), called with
   `callFunction()` from `src/lib/functions.ts`:
-  - `invite` — creates invitations as the caller (RLS-checked) and emails them
-  - `admin` — admin-only: remove user, email status, connect email delivery, test email, resend invite
-  - `notifications` — run hourly by pg_cron: @mention emails + morning digests (8am local time)
+  - `invite`: creates invitations as the caller (RLS-checked) and emails them
+  - `admin`: admin-only. Remove user, reset someone's two-factor, email status, connect email
+    delivery, test email, resend invite
+  - `files`: signed upload/download URLs for attachments on Cloudflare R2 (falls back to Supabase
+    Storage when R2 isn't configured)
+  - `notifications`: called by pg_cron. Hourly @mention emails; every 15 minutes, morning digests
+    (8am local time), at most 100 emails per run
+  - `auth-email`: Supabase Auth "Send Email" hook (confirm address, reset password), verified with
+    Standard Webhooks signatures
+  All email goes through `_shared/email.ts` (Gmail API with a stored refresh token).
   Shared function code is in `supabase/functions/_shared/`; `notification-text.ts` is also imported
   by the web app so Inbox and emails word things identically.
 
@@ -41,6 +52,16 @@ for permissions — UI checks only hide controls.
   parent. Editable by project editors, the creator, or the assignee. RPCs: `can_edit_task`, `can_comment_task`.
 - Subtasks inherit `project_id` from their parent (trigger) and have no section. Project views list only
   `parent_id is null` tasks.
+- **Two-factor is mandatory**: a restrictive `mfa_required` policy on every table requires the
+  session's `aal` claim to be `aal2`, and every `public.*` helper answers only for aal2 sessions.
+- **Password accounts** get a profile only after confirming their email (`private.provision_profile`
+  runs on confirmation), so nobody can claim an address they don't own.
+- **Performance rule:** list policies compare rows against per-statement arrays
+  (`my_visible_project_ids()`, `my_followed_task_ids()`, wrapped as `(select …)::uuid[]`) instead of
+  calling helpers per row. Child tables (comments, attachments, …) check
+  `exists (select 1 from tasks …)` and inherit the tasks policy. Keep new policies set-based; per-row
+  helper calls are fine only for single-row writes. `project_stats()` is a function for the same reason.
+  `scripts/load-test.sql` times the hot paths with 500 people's worth of data.
 - Permission helpers: `private.*(…, p_user)` are internal; the `public.*` wrappers (e.g.
   `project_access(p_project)`) always evaluate for the caller, and anonymous users can't call any
   function. Internal trigger helpers (`private.notify`, `private.log_activity`, `private.run_rules`)
@@ -58,18 +79,21 @@ Add new hooks next to the existing ones (new file per feature is fine). Patterns
   so `useUpdateTask` / `useCreateTask` / `useDeleteTask` patch them optimistically everywhere.
 - Create tasks with a client id: `create.mutate({ id: newId(), ... , created_by: me.id })`.
 - Realtime: `useRealtime({ table, filter, invalidate: [keys] })` (tables listed in `realtime.ts`).
+  If live updates can't connect (e.g. the plan's connection limit), it polls every 30 s instead.
+- Task selects use `TASK_COLUMNS` from `tasks.ts` (never `*`: it would download the full-text index).
 - Current user: `useMe()` (profile), `useIsAdmin()`, `useIsGuest()` from `src/lib/queries/me.tsx`.
 - People: `useProfiles`, `useActiveProfiles`, `useProfileMap`, `useProfile(id)`.
 - Projects: `useProjects`, `useProject`, `useProjectAccess`, `useCanEditProject`, `useSections`,
-  `useCreateSection`/`useUpdateSection`/`useDeleteSection`, `useProjectMembers`, `useProjectStats`.
+  `useCreateSection`/`useUpdateSection`/`useDeleteSection`, `useProjectMembers`, `useProjectStats` (RPC).
 - Tasks: `useProjectTasks(projectId)` (→ `TaskItem[]` with `subtask_count`, `comment_count`),
   `useMyTasks(userId)`, `useSubtasks`, `useTask`, `useCanEditTask`, `useUpdateTask`, `useCreateTask`, `useDeleteTask`.
 - Custom fields: `useCustomFields`, `useProjectFieldValues` (→ `map: Map<taskId, Map<fieldId, value>>`),
   `useTaskFieldValues`, `useSetFieldValue` in `src/lib/queries/fields.ts`.
 - Feature hooks: `rules.ts` / `field-admin.ts` (workflow tab), `notifications.ts` (inbox),
   `search.ts`, `home.ts`, `goals.ts` (incl. `goalProgress`), `portfolios.ts`, `workload.ts`
-  (`useTasksInRange`), `teams.ts`, `admin.ts`. Timeline dependencies:
-  `components/project/timeline/use-project-dependencies.ts`.
+  (`useTasksInRange`), `teams.ts`, `admin.ts`, `project-dependencies.ts` (timeline).
+- Browser state: `src/lib/use-local-storage.ts` (`useLocalFlag`, `useLocalNumber`, `useLocalString`),
+  `src/lib/theme.ts`, generic hooks in `src/lib/hooks.ts` (`useElementSize`, `useToday`, `useMediaQuery`).
 - Edge Functions resolve the caller with `requireCaller()` / `requireAdmin()` (RLS-bound client) before
   touching the service-role client. Secrets are Supabase function secrets, never in the repo.
 - Types: `src/types/models.ts` (row aliases) — generated DB types in `src/types/database.ts`

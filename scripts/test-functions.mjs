@@ -1,40 +1,16 @@
-// Integration tests for the Edge Functions (invite, admin, notifications).
+// Integration tests for the Edge Functions (invite, admin, files, notifications).
 // Needs the local stack with the functions runtime and seeded data:
 //   npm run db:start && npm run db:reset && npm run seed:dev && npm run test:functions
-import { createClient } from "@supabase/supabase-js";
-import { readFileSync } from "node:fs";
+import { adminClient, anonClient, localEnv, reporter, signInWithMfa } from "./lib/helpers.mjs";
 
-const env = Object.fromEntries(
-  readFileSync(new URL("../.env.local", import.meta.url), "utf8")
-    .split("\n")
-    .filter((l) => l.includes("=") && !l.startsWith("#"))
-    .map((l) => [l.slice(0, l.indexOf("=")).trim(), l.slice(l.indexOf("=") + 1).trim()]),
-);
-const URL_ = env.NEXT_PUBLIC_SUPABASE_URL;
-if (!URL_.includes("127.0.0.1") && !URL_.includes("localhost")) throw new Error("Refusing to run against a non-local project");
-const PUB = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-const admin = createClient(URL_, env.SUPABASE_SECRET_KEY, { auth: { persistSession: false } });
-const PASSWORD = "seeds-dev-password";
+const { url: URL_, publishableKey: PUB } = localEnv();
+const admin = adminClient();
+const { check, finish } = reporter();
+const PASSWORD = "seeds-dev-2026";
 const run = Date.now().toString(36);
 
-let passes = 0;
-let failures = 0;
-const check = (name, cond, extra) => {
-  if (cond) {
-    passes++;
-    console.log(`  ✓ ${name}`);
-  } else {
-    failures++;
-    console.log(`  ✗ ${name}`, extra ?? "");
-  }
-};
-
-async function as(email) {
-  const c = createClient(URL_, PUB, { auth: { persistSession: false } });
-  const { data, error } = await c.auth.signInWithPassword({ email, password: PASSWORD });
-  if (error) throw new Error(`${email}: ${error.message} (run npm run seed:dev first)`);
-  return { c, token: data.session.access_token, id: data.user.id };
-}
+/** Seeded user signed in with two-factor completed. */
+const as = (email) => signInWithMfa(email, PASSWORD);
 
 async function call(name, token, body, headers = {}) {
   const res = await fetch(`${URL_}/functions/v1/${name}`, {
@@ -79,14 +55,32 @@ check("admin removes a user", r.status === 200, r);
 r = await call("admin", jordan.token, { action: "remove-user", userId: guest.id });
 check("members can't remove users", r.status === 403, r);
 
+const { data: tempMfa } = await admin.auth.admin.createUser({ email: `mfa-${run}@seedsofleadership.ca`, password: PASSWORD, email_confirm: true });
+await signInWithMfa(`mfa-${run}@seedsofleadership.ca`, PASSWORD);
+r = await call("admin", aya.token, { action: "reset-mfa", userId: tempMfa.user.id });
+const { data: leftFactors } = await admin.auth.admin.mfa.listFactors({ userId: tempMfa.user.id });
+check("admin resets someone's two-factor", r.status === 200 && leftFactors.factors.length === 0, r);
+r = await call("admin", jordan.token, { action: "reset-mfa", userId: guest.id });
+check("members can't reset two-factor", r.status === 403, r);
+
+console.log("\ntwo-factor");
+const passwordOnly = anonClient();
+const { data: aal1 } = await passwordOnly.auth.signInWithPassword({ email: "sam@seedsofleadership.ca", password: PASSWORD });
+r = await call("invite", aal1.session.access_token, { email: `x2-${run}@partner.org` });
+check("functions refuse sessions without two-factor", r.status === 403, r);
+
+console.log("\nfiles");
+const { data: anyTask } = await admin.from("tasks").select("id").eq("name", "Book the venue").single();
+r = await call("files", jordan.token, { action: "upload-url", taskId: anyTask.id, fileName: "a.pdf", size: 1000 });
+check("without R2 configured, uploads use Supabase Storage", r.status === 200 && r.body?.backend === "supabase", r);
+
 console.log("\nnotifications");
 r = await call("notifications", null, {});
 check("rejects calls without the cron secret", r.status === 401, r);
 r = await call("notifications", null, {}, { "x-cron-secret": "guess" });
 check("rejects a wrong cron secret", r.status === 401, r);
 await admin.rpc("configure_notifications", { p_url: `${URL_}/functions/v1/notifications`, p_secret: `test-${run}` });
-r = await call("notifications", null, {}, { "x-cron-secret": `test-${run}` });
+r = await call("notifications", null, { job: "mentions" }, { "x-cron-secret": `test-${run}` });
 check("accepts the configured secret", r.status === 200 && r.body?.ok, r);
 
-console.log(`\n${passes} passed, ${failures} failed\n`);
-process.exit(failures ? 1 : 0);
+finish();

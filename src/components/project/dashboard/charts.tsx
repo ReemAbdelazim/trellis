@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { useElementSize } from "../calendar/hooks";
+import { useElementSize } from "@/lib/hooks";
 
 /** Card shell for a chart with a visible title and an accessible data table. */
 export function ChartCard({

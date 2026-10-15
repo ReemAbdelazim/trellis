@@ -12,12 +12,17 @@ const supabase = () => createClient();
 /** A task row plus the counts list views show. */
 export type TaskItem = Task & { subtask_count: number; comment_count: number };
 
+/** Every task column the app uses (skips the large full-text `search` column). */
+// (One literal string so supabase-js can infer the row type.)
+export const TASK_COLUMNS =
+  "id, project_id, section_id, parent_id, name, description, assignee_id, start_date, due_date, completed, completed_at, completed_by, is_milestone, estimate_hours, position, my_tasks_bucket, my_tasks_position, created_by, created_at, updated_at";
+
 // Self-referencing embed: the column hint (`parent_id`) selects the child direction.
-const TASK_SELECT = "*, subtasks:tasks!parent_id(count), comments(count)";
+const TASK_SELECT = `${TASK_COLUMNS}, subtasks:tasks!parent_id(count), comments(count)` as const;
 
 type RawTaskRow = Task & { subtasks?: { count: number }[]; comments?: { count: number }[] };
 
-export function toTaskItem(row: RawTaskRow): TaskItem {
+function toTaskItem(row: RawTaskRow): TaskItem {
   const { subtasks, comments, ...task } = row;
   return {
     ...(task as Task),
@@ -95,7 +100,7 @@ export function useTask(id: string | null | undefined) {
     queryKey: qk.task(id ?? ""),
     enabled: !!id,
     queryFn: async (): Promise<Task | null> => {
-      const { data, error } = await supabase().from("tasks").select("*").eq("id", id!).maybeSingle();
+      const { data, error } = await supabase().from("tasks").select(TASK_COLUMNS).eq("id", id!).maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -128,7 +133,7 @@ export function patchTaskInCaches(qc: QueryClient, id: string, patch: Partial<Ta
   qc.setQueryData<Task | null>(qk.task(id), (t) => (t ? { ...t, ...patch } : t));
 }
 
-export function removeTaskFromCaches(qc: QueryClient, id: string) {
+function removeTaskFromCaches(qc: QueryClient, id: string) {
   qc.setQueriesData<TaskItem[]>({ queryKey: qk.tasks }, (list) =>
     Array.isArray(list) ? list.filter((t) => t.id !== id) : list,
   );
@@ -164,7 +169,7 @@ export function useUpdateTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...patch }: TaskUpdate & { id: string }) => {
-      const { data, error } = await supabase().from("tasks").update(patch).eq("id", id).select().maybeSingle();
+      const { data, error } = await supabase().from("tasks").update(patch).eq("id", id).select(TASK_COLUMNS).maybeSingle();
       if (error) throw error;
       if (!data) throw new Error("You don't have permission to edit this task");
       return data;
@@ -198,7 +203,7 @@ export function useCreateTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: TaskInsert & { id: string }) => {
-      const { data, error } = await supabase().from("tasks").insert(input).select().single();
+      const { data, error } = await supabase().from("tasks").insert(input).select(TASK_COLUMNS).single();
       if (error) throw error;
       return data;
     },
@@ -224,7 +229,6 @@ export function useCreateTask() {
         created_by: input.created_by ?? null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        search: null,
         ...input,
       } as Task);
       const add = (key: readonly unknown[]) =>

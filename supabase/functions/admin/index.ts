@@ -8,6 +8,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 type Body =
   | { action: "remove-user"; userId: string }
+  | { action: "reset-mfa"; userId: string }
   | { action: "email-status" }
   | { action: "connect-email" }
   | { action: "test-email" }
@@ -43,6 +44,21 @@ serve(async (req) => {
       return json({ ok: true });
     }
 
+    case "reset-mfa": {
+      // For someone who lost their authenticator: they set up a new one at next sign-in.
+      if (typeof body.userId !== "string" || !UUID_RE.test(body.userId)) throw new HttpError(400, "Invalid user");
+      if (body.userId === caller.id) throw new HttpError(400, "Reset your own authenticator in Settings");
+      const { data, error } = await svc.auth.admin.mfa.listFactors({ userId: body.userId });
+      if (error) throw new HttpError(500, error.message);
+      for (const factor of data.factors) {
+        const { error: delError } = await svc.auth.admin.mfa.deleteFactor({ userId: body.userId, id: factor.id });
+        if (delError) throw new HttpError(500, delError.message);
+      }
+      // End their sessions so the reset takes effect immediately.
+      await svc.auth.admin.signOut(body.userId).catch(() => undefined);
+      return json({ ok: true, removed: data.factors.length });
+    }
+
     case "email-status": {
       const { data } = await svc.rpc("notification_delivery_status");
       const status = (data ?? {}) as { connected?: boolean; connected_at?: string };
@@ -56,7 +72,7 @@ serve(async (req) => {
     }
 
     case "connect-email": {
-      if (!emailEnabled()) throw new HttpError(400, "Set RESEND_API_KEY, EMAIL_FROM and APP_URL function secrets first");
+      if (!emailEnabled()) throw new HttpError(400, "Set the Gmail and APP_URL function secrets first (see docs/SELF_HOSTING.md)");
       const url = `${SUPABASE_URL}/functions/v1/notifications`;
       const { error } = await svc.rpc("configure_notifications", { p_url: url, p_secret: randomSecret() });
       if (error) throw new HttpError(500, error.message);
@@ -73,7 +89,7 @@ serve(async (req) => {
         }),
         text: `Email is working. ${appUrl("/home")}`,
       });
-      if (!sent) throw new HttpError(400, "The email could not be sent. Check the Resend settings.");
+      if (!sent) throw new HttpError(400, "The email could not be sent. Check the Gmail function secrets.");
       return json({ ok: true });
     }
 

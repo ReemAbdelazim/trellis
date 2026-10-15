@@ -2,10 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { qk } from "./keys";
 import type { TaskDependency } from "@/types/models";
-
-/** Query key shared with `useSetDependency`, which invalidates ["project-dependencies"]. */
-export const projectDependenciesKey = (projectId: string) => ["project-dependencies", projectId] as const;
 
 /**
  * Every dependency whose blocked task belongs to the project.
@@ -13,7 +11,7 @@ export const projectDependenciesKey = (projectId: string) => ["project-dependenc
  */
 export function useProjectDependencies(projectId: string | null | undefined) {
   return useQuery({
-    queryKey: projectDependenciesKey(projectId ?? ""),
+    queryKey: qk.projectDependencies(projectId ?? ""),
     enabled: !!projectId,
     queryFn: async (): Promise<TaskDependency[]> => {
       const { data, error } = await createClient()

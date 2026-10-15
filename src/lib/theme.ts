@@ -4,7 +4,7 @@ import { useSyncExternalStore } from "react";
 
 export type Theme = "light" | "dark" | "system";
 
-export const THEME_KEY = "seeds-theme";
+const THEME_KEY = "seeds-theme";
 const THEME_EVENT = "seeds-theme-change";
 
 /** Inline script for <head>: applies the saved theme before first paint. */

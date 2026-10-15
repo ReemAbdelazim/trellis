@@ -1,10 +1,14 @@
-// POST /functions/v1/notifications — called hourly by pg_cron (no user JWT; it
-// authenticates with the shared secret stored by the admin "Connect email" step).
+// POST /functions/v1/notifications  { job: "mentions" | "digests" }
+// Called by pg_cron (no user JWT; it authenticates with the shared secret stored
+// by the admin "Connect email" step).
 //
-// 1. Mentions: one email per person who was @mentioned since the last run.
-// 2. Morning digest: between 08:00 and 11:59 in each person's time zone, once a
-//    day, one email listing whatever is still unread in their Inbox.
-import { HttpError, json, safeEqual, serve } from "../_shared/http.ts";
+// mentions (hourly):         one email per person @mentioned since the last run.
+// digests (every 15 minutes): between 08:00 and 11:59 in each person's time zone,
+//                             once a day, one email listing what's still unread.
+//
+// Each run sends at most MAX_EMAILS_PER_RUN so it stays inside the function time
+// limit and Gmail's sending rate; anything left is picked up by the next run.
+import { HttpError, json, readJson, safeEqual, serve } from "../_shared/http.ts";
 import { serviceClient } from "../_shared/supabase.ts";
 import { appUrl, emailEnabled, emailLayout, escapeHtml, sendEmail } from "../_shared/email.ts";
 import {
@@ -18,6 +22,7 @@ import {
 const DIGEST_START_HOUR = 8;
 const DIGEST_END_HOUR = 12;
 const MAX_ITEMS_PER_EMAIL = 25;
+const MAX_EMAILS_PER_RUN = 100;
 
 type Row = NotificationLike & { id: string; user_id: string; created_at: string };
 type Person = { id: string; email: string; full_name: string; timezone: string | null; last_digest_on: string | null };
@@ -30,9 +35,10 @@ serve(async (req) => {
   if (!secret || !safeEqual(req.headers.get("x-cron-secret") ?? "", secret)) throw new HttpError(401, "Unauthorized");
   if (!emailEnabled()) return json({ ok: true, skipped: "email not configured" });
 
-  const mentions = await sendMentionEmails(svc);
-  const digests = await sendMorningDigests(svc);
-  return json({ ok: true, mentions, digests });
+  const { job } = await readJson<{ job?: string }>(req);
+  if (job === "mentions") return json({ ok: true, mentions: await sendMentionEmails(svc) });
+  if (job === "digests") return json({ ok: true, digests: await sendMorningDigests(svc) });
+  throw new HttpError(400, "Unknown job");
 });
 
 /** People who want email, keyed by id. */
@@ -104,7 +110,17 @@ async function sendMentionEmails(svc: Svc) {
   const rows = (claimed ?? []) as Row[];
   if (!rows.length) return { sent: 0 };
 
-  const people = await loadPeople(svc, [...new Set(rows.map((r) => r.user_id))]);
+  const recipients = [...new Set(rows.map((r) => r.user_id))];
+  // Over the per-run cap: hand the rest back for the next run.
+  const later = recipients.slice(MAX_EMAILS_PER_RUN);
+  if (later.length) {
+    await svc
+      .from("notifications")
+      .update({ emailed_at: null })
+      .in("id", rows.filter((r) => later.includes(r.user_id)).map((r) => r.id));
+  }
+
+  const people = await loadPeople(svc, recipients.slice(0, MAX_EMAILS_PER_RUN));
   const names = await loadNames(svc, rows);
   let sent = 0;
   for (const [userId, person] of people) {
@@ -162,12 +178,15 @@ async function sendMorningDigests(svc: Svc) {
     .eq("email_notifications", true);
 
   let sent = 0;
+  let checked = 0;
   for (const person of (everyone ?? []) as Person[]) {
+    if (checked >= MAX_EMAILS_PER_RUN) break; // the next 15-minute run continues
     const { date, hour } = localParts(safeTimeZone(person.timezone, orgTz));
     if (hour < DIGEST_START_HOUR || hour >= DIGEST_END_HOUR) continue;
     if (person.last_digest_on && person.last_digest_on >= date) continue;
 
     // Mark first: at most one digest per person per day, even if sending fails.
+    checked++;
     await svc.from("profiles").update({ last_digest_on: date }).eq("id", person.id);
 
     const { data: unread } = await svc

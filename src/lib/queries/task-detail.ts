@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { errorMessage } from "@/lib/utils";
 import { qk } from "./keys";
+import { callFunction } from "@/lib/functions";
+import { TASK_COLUMNS } from "./tasks";
 import type { Attachment, Comment, Task, TaskActivity } from "@/types/models";
 
 const supabase = () => createClient();
@@ -163,7 +165,7 @@ export function useDependencies(taskId: string) {
       if (b.error) throw b.error;
       const ids = [...a.data.map((d) => d.depends_on_id), ...b.data.map((d) => d.task_id)];
       if (!ids.length) return { blockedBy: [], blocking: [] };
-      const { data: tasks, error } = await sb.from("tasks").select("*").in("id", ids);
+      const { data: tasks, error } = await sb.from("tasks").select(TASK_COLUMNS).in("id", ids);
       if (error) throw error;
       const byId = new Map(tasks.map((t) => [t.id, t]));
       return {
@@ -187,7 +189,7 @@ export function useSetDependency() {
     onSettled: (_d, _e, v) => {
       qc.invalidateQueries({ queryKey: qk.dependencies(v.taskId) });
       qc.invalidateQueries({ queryKey: qk.dependencies(v.dependsOnId) });
-      qc.invalidateQueries({ queryKey: ["project-dependencies"] });
+      qc.invalidateQueries({ queryKey: qk.allProjectDependencies });
     },
     onError: (err) => toast.error(/cycle/i.test(errorMessage(err)) ? "That would create a circular dependency" : errorMessage(err)),
   });
@@ -213,26 +215,45 @@ export function useAttachments(taskId: string) {
 
 const MAX_BYTES = 50 * 1024 * 1024;
 
+type UploadTarget = { backend: "supabase" } | { backend: "r2"; key: string; url: string };
+
+/** Stores the file in R2 when the `files` function is configured for it, else in Supabase Storage. */
+async function storeFile(taskId: string, file: File): Promise<{ path: string; backend: "supabase" | "r2" }> {
+  const target = await callFunction<UploadTarget>("files", {
+    action: "upload-url",
+    taskId,
+    fileName: file.name,
+    size: file.size,
+  });
+  if (target.backend === "r2") {
+    const res = await fetch(target.url, { method: "PUT", body: file, headers: { "Content-Type": file.type || "application/octet-stream" } });
+    if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+    return { path: target.key, backend: "r2" };
+  }
+  const safe = file.name.replace(/[^\w.\- ]+/g, "_").slice(-120);
+  const path = `${taskId}/${crypto.randomUUID()}-${safe}`;
+  const { error } = await supabase().storage.from("attachments").upload(path, file, { contentType: file.type || undefined });
+  if (error) throw error;
+  return { path, backend: "supabase" };
+}
+
 export function useUploadAttachment(taskId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ file, uploaderId }: { file: File; uploaderId: string }) => {
       if (file.size > MAX_BYTES) throw new Error(`${file.name} is larger than 50 MB`);
-      const sb = supabase();
-      const safe = file.name.replace(/[^\w.\- ]+/g, "_").slice(-120);
-      const path = `${taskId}/${crypto.randomUUID()}-${safe}`;
-      const up = await sb.storage.from("attachments").upload(path, file, { contentType: file.type || undefined });
-      if (up.error) throw up.error;
-      const { error } = await sb.from("attachments").insert({
+      const stored = await storeFile(taskId, file);
+      const { error } = await supabase().from("attachments").insert({
         task_id: taskId,
         uploader_id: uploaderId,
         file_name: file.name,
-        storage_path: path,
+        storage_path: stored.path,
+        storage_backend: stored.backend,
         mime_type: file.type || null,
         size_bytes: file.size,
       });
       if (error) {
-        await sb.storage.from("attachments").remove([path]);
+        if (stored.backend === "supabase") await supabase().storage.from("attachments").remove([stored.path]);
         throw error;
       }
     },
@@ -248,6 +269,10 @@ export function useDeleteAttachment(taskId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (a: Attachment) => {
+      if (a.storage_backend === "r2") {
+        await callFunction("files", { action: "delete", attachmentId: a.id });
+        return;
+      }
       const sb = supabase();
       const { error } = await sb.from("attachments").delete().eq("id", a.id);
       if (error) throw error;
@@ -258,7 +283,12 @@ export function useDeleteAttachment(taskId: string) {
   });
 }
 
+/** Short-lived link to view or download an attachment. */
 export async function attachmentUrl(a: Attachment, download = false) {
+  if (a.storage_backend === "r2") {
+    const { url } = await callFunction<{ url: string }>("files", { action: "download-url", attachmentId: a.id, download });
+    return url;
+  }
   const { data, error } = await supabase()
     .storage.from("attachments")
     .createSignedUrl(a.storage_path, 60 * 10, download ? { download: a.file_name } : undefined);

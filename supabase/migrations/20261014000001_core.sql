@@ -236,6 +236,8 @@ create table public.attachments (
   uploader_id uuid references public.profiles (id) on delete set null default auth.uid(),
   file_name text not null,
   storage_path text not null unique,
+  -- 'supabase' = Supabase Storage bucket; 'r2' = Cloudflare R2 (see the files Edge Function)
+  storage_backend text not null default 'supabase' check (storage_backend in ('supabase', 'r2')),
   mime_type text,
   size_bytes bigint,
   created_at timestamptz not null default now()
@@ -455,6 +457,35 @@ returns boolean language sql stable security definer set search_path = '' as $$
   select coalesce(private.project_access(p_project, p_user) in ('owner', 'editor'), false);
 $$;
 
+-- Every project the user can see, as one array. RLS policies compare rows against
+-- it (computed once per statement) instead of calling project_access() per row,
+-- which keeps large lists fast. Must agree with project_access() above.
+create or replace function private.visible_project_ids(p_user uuid)
+returns uuid[] language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_role public.user_role;
+begin
+  select role into v_role from public.profiles where id = p_user and status = 'active';
+  if v_role is null then return '{}'; end if;
+  if v_role = 'admin' then return (select coalesce(array_agg(id), '{}') from public.projects); end if;
+  return (
+    select coalesce(array_agg(p.id), '{}') from public.projects p
+    where p.owner_id = p_user or p.created_by = p_user
+      or exists (select 1 from public.project_members pm where pm.project_id = p.id and pm.user_id = p_user)
+      or (v_role = 'member' and (
+        p.privacy = 'public'
+        or (p.privacy = 'team' and p.team_id is not null
+            and exists (select 1 from public.team_members tm where tm.team_id = p.team_id and tm.user_id = p_user))
+      ))
+  );
+end;
+$$;
+
+create or replace function private.followed_task_ids(p_user uuid)
+returns uuid[] language sql stable security definer set search_path = '' as $$
+  select coalesce(array_agg(task_id), '{}') from public.task_followers where user_id = p_user;
+$$;
+
 -- Walks up the subtask chain. Chains are capped by the tasks trigger, and the
 -- loop bound means a corrupted chain can never recurse forever.
 create or replace function private.can_view_task(p_task uuid, p_user uuid)
@@ -549,52 +580,68 @@ returns boolean language sql stable security definer set search_path = '' as $$
   );
 $$;
 
+-- True when the caller's session passed two-factor verification (TOTP).
+create or replace function private.mfa_ok()
+returns boolean language sql stable set search_path = '' as $$
+  select coalesce(auth.jwt() ->> 'aal', '') = 'aal2';
+$$;
+
 revoke all on all functions in schema private from public, anon, authenticated;
 
 -- Public wrappers: always evaluated for the calling user.
+create or replace function public.my_visible_project_ids() returns uuid[]
+language sql stable security definer set search_path = '' as $$
+  select case when private.mfa_ok() then private.visible_project_ids(auth.uid()) else '{}'::uuid[] end;
+$$;
+
+create or replace function public.my_followed_task_ids() returns uuid[]
+language sql stable security definer set search_path = '' as $$
+  select case when private.mfa_ok() then private.followed_task_ids(auth.uid()) else '{}'::uuid[] end;
+$$;
+
 create or replace function public.is_active() returns boolean
-language sql stable security definer set search_path = '' as $$ select private.is_active(auth.uid()); $$;
+language sql stable security definer set search_path = '' as $$ select private.mfa_ok() and private.is_active(auth.uid()); $$;
 
 create or replace function public.is_admin() returns boolean
-language sql stable security definer set search_path = '' as $$ select private.is_admin(auth.uid()); $$;
+language sql stable security definer set search_path = '' as $$ select private.mfa_ok() and private.is_admin(auth.uid()); $$;
 
 create or replace function public.is_full_member() returns boolean
-language sql stable security definer set search_path = '' as $$ select private.is_full_member(auth.uid()); $$;
+language sql stable security definer set search_path = '' as $$ select private.mfa_ok() and private.is_full_member(auth.uid()); $$;
 
 create or replace function public.is_team_admin(p_team uuid) returns boolean
-language sql stable security definer set search_path = '' as $$ select private.is_team_admin(p_team, auth.uid()); $$;
+language sql stable security definer set search_path = '' as $$ select private.mfa_ok() and private.is_team_admin(p_team, auth.uid()); $$;
 
 create or replace function public.project_access(p_project uuid) returns text
-language sql stable security definer set search_path = '' as $$ select private.project_access(p_project, auth.uid()); $$;
+language sql stable security definer set search_path = '' as $$ select case when private.mfa_ok() then private.project_access(p_project, auth.uid()) end; $$;
 
 create or replace function public.can_view_project(p_project uuid) returns boolean
-language sql stable security definer set search_path = '' as $$ select private.can_view_project(p_project, auth.uid()); $$;
+language sql stable security definer set search_path = '' as $$ select private.mfa_ok() and private.can_view_project(p_project, auth.uid()); $$;
 
 create or replace function public.can_edit_project(p_project uuid) returns boolean
-language sql stable security definer set search_path = '' as $$ select private.can_edit_project(p_project, auth.uid()); $$;
+language sql stable security definer set search_path = '' as $$ select private.mfa_ok() and private.can_edit_project(p_project, auth.uid()); $$;
 
 create or replace function public.can_view_task(p_task uuid) returns boolean
-language sql stable security definer set search_path = '' as $$ select private.can_view_task(p_task, auth.uid()); $$;
+language sql stable security definer set search_path = '' as $$ select private.mfa_ok() and private.can_view_task(p_task, auth.uid()); $$;
 
 create or replace function public.can_edit_task(p_task uuid) returns boolean
-language sql stable security definer set search_path = '' as $$ select private.can_edit_task(p_task, auth.uid()); $$;
+language sql stable security definer set search_path = '' as $$ select private.mfa_ok() and private.can_edit_task(p_task, auth.uid()); $$;
 
 create or replace function public.can_comment_task(p_task uuid) returns boolean
-language sql stable security definer set search_path = '' as $$ select private.can_comment_task(p_task, auth.uid()); $$;
+language sql stable security definer set search_path = '' as $$ select private.mfa_ok() and private.can_comment_task(p_task, auth.uid()); $$;
 
 create or replace function public.is_task_follower(p_task uuid) returns boolean
 language sql stable security definer set search_path = '' as $$
-  select exists (select 1 from public.task_followers where task_id = p_task and user_id = auth.uid());
+  select private.mfa_ok() and exists (select 1 from public.task_followers where task_id = p_task and user_id = auth.uid());
 $$;
 
 create or replace function public.can_see_profile(p_profile uuid) returns boolean
-language sql stable security definer set search_path = '' as $$ select private.can_see_profile(p_profile, auth.uid()); $$;
+language sql stable security definer set search_path = '' as $$ select private.mfa_ok() and private.can_see_profile(p_profile, auth.uid()); $$;
 
 create or replace function public.can_view_portfolio(p_portfolio uuid) returns boolean
-language sql stable security definer set search_path = '' as $$ select private.can_view_portfolio(p_portfolio, auth.uid()); $$;
+language sql stable security definer set search_path = '' as $$ select private.mfa_ok() and private.can_view_portfolio(p_portfolio, auth.uid()); $$;
 
 create or replace function public.can_edit_portfolio(p_portfolio uuid) returns boolean
-language sql stable security definer set search_path = '' as $$ select private.can_edit_portfolio(p_portfolio, auth.uid()); $$;
+language sql stable security definer set search_path = '' as $$ select private.mfa_ok() and private.can_edit_portfolio(p_portfolio, auth.uid()); $$;
 -- =============================================================================
 -- Row level security
 -- =============================================================================
@@ -672,7 +719,9 @@ create policy team_members_delete on public.team_members for delete to authentic
 
 -- projects (row-based checks on creator so INSERT ... RETURNING works before membership exists)
 create policy projects_select on public.projects for select to authenticated using (
-  (public.is_active() and (created_by = auth.uid() or owner_id = auth.uid())) or public.can_view_project(id)
+  id = any ((select public.my_visible_project_ids())::uuid[])
+  -- Row-based so INSERT ... RETURNING works before the owner membership exists.
+  or ((created_by = (select auth.uid()) or owner_id = (select auth.uid())) and (select public.is_active()))
 );
 create policy projects_insert on public.projects for insert to authenticated with check (
   public.is_full_member() and created_by = auth.uid()
@@ -681,7 +730,7 @@ create policy projects_update on public.projects for update to authenticated usi
 create policy projects_delete on public.projects for delete to authenticated using (public.project_access(id) = 'owner');
 
 -- project_members
-create policy project_members_select on public.project_members for select to authenticated using (public.can_view_project(project_id));
+create policy project_members_select on public.project_members for select to authenticated using (project_id = any ((select public.my_visible_project_ids())::uuid[]));
 create policy project_members_insert on public.project_members for insert to authenticated with check (
   public.project_access(project_id) = 'owner'
   or (public.can_edit_project(project_id) and role <> 'owner')
@@ -698,12 +747,12 @@ create policy project_favorites_all on public.project_favorites for all to authe
   using (user_id = auth.uid()) with check (user_id = auth.uid() and public.can_view_project(project_id));
 
 -- sections
-create policy sections_select on public.sections for select to authenticated using (public.can_view_project(project_id));
+create policy sections_select on public.sections for select to authenticated using (project_id = any ((select public.my_visible_project_ids())::uuid[]));
 create policy sections_write on public.sections for all to authenticated
   using (public.can_edit_project(project_id)) with check (public.can_edit_project(project_id));
 
 -- project_status_updates
-create policy psu_select on public.project_status_updates for select to authenticated using (public.can_view_project(project_id));
+create policy psu_select on public.project_status_updates for select to authenticated using (project_id = any ((select public.my_visible_project_ids())::uuid[]));
 create policy psu_insert on public.project_status_updates for insert to authenticated
   with check (author_id = auth.uid() and public.can_edit_project(project_id));
 create policy psu_delete on public.project_status_updates for delete to authenticated
@@ -711,12 +760,13 @@ create policy psu_delete on public.project_status_updates for delete to authenti
 
 -- tasks
 create policy tasks_select on public.tasks for select to authenticated using (
-  public.is_active() and (
-    created_by = (select auth.uid())
+  (select public.is_active()) and (
+    project_id = any ((select public.my_visible_project_ids())::uuid[])
+    or created_by = (select auth.uid())
     or assignee_id = (select auth.uid())
-    or (project_id is not null and public.can_view_project(project_id))
-    or public.is_task_follower(id)
-    or (parent_id is not null and public.can_view_task(parent_id))
+    or id = any ((select public.my_followed_task_ids())::uuid[])
+    -- Subtasks of personal tasks (project subtasks are covered by their project).
+    or (project_id is null and parent_id is not null and public.can_view_task(parent_id))
   )
 );
 create policy tasks_insert on public.tasks for insert to authenticated with check (
@@ -735,7 +785,7 @@ create policy tasks_delete on public.tasks for delete to authenticated using (
 );
 
 -- task children
-create policy task_followers_select on public.task_followers for select to authenticated using (public.can_view_task(task_id));
+create policy task_followers_select on public.task_followers for select to authenticated using (exists (select 1 from public.tasks t where t.id = task_id));
 create policy task_followers_insert on public.task_followers for insert to authenticated with check (
   (user_id = auth.uid() and public.can_view_task(task_id)) or public.can_edit_task(task_id)
 );
@@ -743,11 +793,11 @@ create policy task_followers_delete on public.task_followers for delete to authe
   user_id = auth.uid() or public.can_edit_task(task_id)
 );
 
-create policy task_likes_select on public.task_likes for select to authenticated using (public.can_view_task(task_id));
+create policy task_likes_select on public.task_likes for select to authenticated using (exists (select 1 from public.tasks t where t.id = task_id));
 create policy task_likes_insert on public.task_likes for insert to authenticated with check (user_id = auth.uid() and public.can_view_task(task_id));
 create policy task_likes_delete on public.task_likes for delete to authenticated using (user_id = auth.uid());
 
-create policy task_deps_select on public.task_dependencies for select to authenticated using (public.can_view_task(task_id));
+create policy task_deps_select on public.task_dependencies for select to authenticated using (exists (select 1 from public.tasks t where t.id = task_id));
 create policy task_deps_write on public.task_dependencies for all to authenticated
   using (public.can_edit_task(task_id)) with check (public.can_edit_task(task_id) and public.can_view_task(depends_on_id));
 
@@ -756,31 +806,31 @@ create policy tags_insert on public.tags for insert to authenticated with check 
 create policy tags_update on public.tags for update to authenticated using (public.is_full_member());
 create policy tags_delete on public.tags for delete to authenticated using (public.is_admin());
 
-create policy task_tags_select on public.task_tags for select to authenticated using (public.can_view_task(task_id));
+create policy task_tags_select on public.task_tags for select to authenticated using (exists (select 1 from public.tasks t where t.id = task_id));
 create policy task_tags_write on public.task_tags for all to authenticated
   using (public.can_edit_task(task_id)) with check (public.can_edit_task(task_id));
 
-create policy comments_select on public.comments for select to authenticated using (public.can_view_task(task_id));
+create policy comments_select on public.comments for select to authenticated using (exists (select 1 from public.tasks t where t.id = task_id));
 create policy comments_insert on public.comments for insert to authenticated
   with check (author_id = auth.uid() and public.can_comment_task(task_id));
 create policy comments_update on public.comments for update to authenticated
   using (author_id = auth.uid()) with check (author_id = auth.uid());
 create policy comments_delete on public.comments for delete to authenticated using (author_id = auth.uid() or public.is_admin());
 
-create policy task_activity_select on public.task_activity for select to authenticated using (public.can_view_task(task_id));
+create policy task_activity_select on public.task_activity for select to authenticated using (exists (select 1 from public.tasks t where t.id = task_id));
 
-create policy attachments_select on public.attachments for select to authenticated using (public.can_view_task(task_id));
+create policy attachments_select on public.attachments for select to authenticated using (exists (select 1 from public.tasks t where t.id = task_id));
 create policy attachments_insert on public.attachments for insert to authenticated
   with check (uploader_id = auth.uid() and public.can_comment_task(task_id));
 create policy attachments_delete on public.attachments for delete to authenticated
   using (uploader_id = auth.uid() or public.can_edit_task(task_id));
 
 -- custom fields & rules
-create policy custom_fields_select on public.custom_fields for select to authenticated using (public.can_view_project(project_id));
+create policy custom_fields_select on public.custom_fields for select to authenticated using (project_id = any ((select public.my_visible_project_ids())::uuid[]));
 create policy custom_fields_write on public.custom_fields for all to authenticated
   using (public.can_edit_project(project_id)) with check (public.can_edit_project(project_id));
 
-create policy tfv_select on public.task_field_values for select to authenticated using (public.can_view_task(task_id));
+create policy tfv_select on public.task_field_values for select to authenticated using (exists (select 1 from public.tasks t where t.id = task_id));
 create policy tfv_write on public.task_field_values for all to authenticated
   using (public.can_edit_task(task_id))
   with check (
@@ -791,7 +841,7 @@ create policy tfv_write on public.task_field_values for all to authenticated
     )
   );
 
-create policy rules_select on public.rules for select to authenticated using (public.can_view_project(project_id));
+create policy rules_select on public.rules for select to authenticated using (project_id = any ((select public.my_visible_project_ids())::uuid[]));
 create policy rules_write on public.rules for all to authenticated
   using (public.can_edit_project(project_id)) with check (public.can_edit_project(project_id));
 
@@ -838,15 +888,38 @@ create policy portfolio_projects_write on public.portfolio_projects for all to a
   with check (public.can_edit_portfolio(portfolio_id) and public.can_view_project(project_id));
 
 -- =============================================================================
--- Reporting view (respects caller's RLS)
+-- Two-factor sign-in is required for everyone: a restrictive policy on every
+-- table rejects sessions that haven't passed the authenticator check (aal2),
+-- whatever the other policies allow.
 -- =============================================================================
-create view public.project_stats with (security_invoker = true) as
-select
-  p.id as project_id,
-  count(t.id) filter (where t.parent_id is null) as total_tasks,
-  count(t.id) filter (where t.parent_id is null and t.completed) as completed_tasks,
-  count(t.id) filter (where t.parent_id is null and not t.completed and t.due_date < current_date) as overdue_tasks,
-  max(t.updated_at) as last_activity_at
-from public.projects p
-left join public.tasks t on t.project_id = p.id
-group by p.id;
+do $$
+declare
+  t text;
+begin
+  for t in select tablename from pg_tables where schemaname = 'public' loop
+    execute format(
+      'create policy mfa_required on public.%I as restrictive for all to authenticated
+         using ((select auth.jwt() ->> ''aal'') = ''aal2'') with check ((select auth.jwt() ->> ''aal'') = ''aal2'')',
+      t
+    );
+  end loop;
+end;
+$$;
+
+-- =============================================================================
+-- Project progress for every project the caller can see, in one indexed pass.
+-- (A security-invoker view joining projects to tasks under RLS doesn't scale.)
+-- =============================================================================
+create or replace function public.project_stats()
+returns table (project_id uuid, total_tasks bigint, completed_tasks bigint, overdue_tasks bigint, last_activity_at timestamptz)
+language sql stable security definer set search_path = '' as $$
+  select
+    p.id,
+    count(t.id),
+    count(t.id) filter (where t.completed),
+    count(t.id) filter (where not t.completed and t.due_date < current_date),
+    max(t.updated_at)
+  from unnest(public.my_visible_project_ids()) as p(id)
+  left join public.tasks t on t.project_id = p.id and t.parent_id is null
+  group by p.id;
+$$;

@@ -30,9 +30,9 @@ create policy "attachments_remove" on storage.objects for delete to authenticate
 -- ---------------------------------------------------------------------------
 -- Email notifications
 --
--- An hourly pg_cron job calls the `notifications` Edge Function, which emails:
---   * new @mentions since the last run (only people who have some), and
---   * a morning digest (8am in each person's time zone) of unread inbox items.
+-- pg_cron calls the `notifications` Edge Function, which emails:
+--   * hourly: new @mentions since the last run (only people who have some), and
+--   * every 15 min: morning digests (8am in each person's time zone) of unread items.
 -- The job is a no-op until an admin connects email in the Admin console, which
 -- stores the function URL and a shared secret here.
 -- ---------------------------------------------------------------------------
@@ -84,8 +84,8 @@ begin
 end;
 $$;
 
--- Hourly: hand off to the notifications Edge Function (no-op until connected).
-create or replace function private.dispatch_notifications()
+-- Hand a job to the notifications Edge Function (no-op until email is connected).
+create or replace function private.dispatch_notifications(p_job text)
 returns void language plpgsql security definer set search_path = '' as $$
 declare
   v_url text := (select value from private.app_config where key = 'notifications_url');
@@ -95,14 +95,15 @@ begin
   perform net.http_post(
     url := v_url,
     headers := jsonb_build_object('x-cron-secret', v_secret, 'Content-Type', 'application/json'),
-    body := '{}'::jsonb,
+    body := jsonb_build_object('job', p_job),
     timeout_milliseconds := 30000
   );
 end;
 $$;
 
 select cron.schedule('seeds-due-soon', '0 9 * * *', 'select private.notify_due_soon()');
-select cron.schedule('seeds-notifications', '0 * * * *', 'select private.dispatch_notifications()');
+select cron.schedule('seeds-mention-emails', '0 * * * *', $$select private.dispatch_notifications('mentions')$$);
+select cron.schedule('seeds-morning-digests', '*/15 * * * *', $$select private.dispatch_notifications('digests')$$);
 
 -- ---------------------------------------------------------------------------
 -- API surface: nothing for anonymous visitors; signed-in users get the

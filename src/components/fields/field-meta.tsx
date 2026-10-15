@@ -69,7 +69,7 @@ export function valuesEqual(a: Json | null | undefined, b: Json | null | undefin
 }
 
 /** Currency-ish single symbols read better before the number; words and % go after. */
-export function unitIsPrefix(unit: string | undefined) {
+function unitIsPrefix(unit: string | undefined) {
   return !!unit && unit.length <= 2 && !/[\p{L}\p{N}%]/u.test(unit);
 }
 

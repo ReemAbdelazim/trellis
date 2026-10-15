@@ -2,23 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import { DEV_LOGIN_ENABLED } from "@/lib/env";
-import { safeNext, signInWithProvider, type OAuthProvider } from "@/lib/auth";
+import { qk } from "@/lib/queries/keys";
+import {
+  authErrorMessage,
+  PASSWORD_RULES,
+  requestPasswordReset,
+  safeNext,
+  signInWithPassword,
+  signInWithProvider,
+  signUpWithPassword,
+  type OAuthProvider,
+} from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input, Label } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/misc";
 
-type Provider = OAuthProvider;
-
-const NOT_AUTHORIZED =
-  "That account isn't part of the Seeds workspace yet. Sign in with your Seeds email, or ask an admin to invite you as a guest.";
-
-function friendlyError(raw: string | null) {
-  if (!raw) return null;
-  if (/SEEDS_NOT_AUTHORIZED|Database error saving new user/i.test(raw)) return NOT_AUTHORIZED;
-  return raw;
-}
+type Mode = "signin" | "signup" | "forgot";
 
 function GoogleIcon() {
   return (
@@ -44,11 +45,16 @@ function MicrosoftIcon() {
 
 export function LoginForm() {
   const params = useSearchParams();
-  const next = safeNext(params.get("next"));
-  const linkError = friendlyError(params.get("error_description") ?? params.get("error"));
-  const [pending, setPending] = useState<Provider | "dev" | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const qc = useQueryClient();
+  const next = safeNext(params.get("next"));
+  const [mode, setMode] = useState<Mode>("signin");
+  const [pending, setPending] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(authErrorMessage(params.get("error_description") ?? params.get("error")));
+  const [notice, setNotice] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
 
   // Already signed in? Skip the login screen.
   useEffect(() => {
@@ -59,87 +65,127 @@ export function LoginForm() {
       });
   }, [next, router]);
 
-  const signIn = async (provider: Provider) => {
-    setPending(provider);
+  const switchMode = (m: Mode) => {
+    setMode(m);
     setError(null);
-    const { error } = await signInWithProvider(provider, next);
-    if (error) {
-      setError(error.message);
-      setPending(null);
+    setNotice(null);
+  };
+
+  const run = async (key: string, action: () => Promise<{ error: { message: string } | null }>, onOk: () => void) => {
+    setPending(key);
+    setError(null);
+    setNotice(null);
+    const { error } = await action();
+    setPending(null);
+    if (error) setError(authErrorMessage(error.message));
+    else onOk();
+  };
+
+  const oauth = (provider: OAuthProvider) =>
+    run(provider, () => signInWithProvider(provider, next), () => {
+      /* the browser is redirected to the provider */
+    });
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (mode === "signin") {
+      run("password", () => signInWithPassword(email, password), () => {
+        qc.removeQueries({ queryKey: qk.me });
+        router.replace(next);
+      });
+    } else if (mode === "signup") {
+      run("password", () => signUpWithPassword({ email, password, fullName, next }), () =>
+        setNotice("Check your email for a link to confirm your address, then sign in."),
+      );
+    } else {
+      run("password", () => requestPasswordReset(email), () =>
+        setNotice("If there's an account for that email, we've sent a link to reset the password."),
+      );
     }
   };
 
   return (
     <div className="space-y-3">
-      {linkError && (
-        <div role="alert" className="mb-1 rounded-md bg-danger-soft px-3 py-2.5 text-[13px] text-danger">
-          {linkError}
+      {error && (
+        <div role="alert" className="rounded-md bg-danger-soft px-3 py-2.5 text-[13px] text-danger">
+          {error}
         </div>
       )}
-      <Button
-        size="md"
-        className="w-full justify-center"
-        disabled={!!pending}
-        onClick={() => signIn("google")}
-      >
-        {pending === "google" ? <Spinner size={16} /> : <GoogleIcon />}
-        Continue with Google
-      </Button>
-      <Button
-        size="md"
-        className="w-full justify-center"
-        disabled={!!pending}
-        onClick={() => signIn("azure")}
-      >
-        {pending === "azure" ? <Spinner size={16} /> : <MicrosoftIcon />}
-        Continue with Microsoft
-      </Button>
-      {error && <p className="text-[13px] text-danger">{error}</p>}
-      {DEV_LOGIN_ENABLED && <DevLogin next={next} onDone={() => router.replace(next)} pending={pending} setPending={setPending} />}
-    </div>
-  );
-}
+      {notice && (
+        <div role="status" className="rounded-md bg-success-soft px-3 py-2.5 text-[13px] text-success">
+          {notice}
+        </div>
+      )}
 
-/** Local development only: password sign-in for seeded test users. */
-function DevLogin({
-  onDone,
-  pending,
-  setPending,
-}: {
-  next: string;
-  onDone: () => void;
-  pending: string | null;
-  setPending: (p: "dev" | null) => void;
-}) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  return (
-    <form
-      className="mt-4 space-y-2 border-t border-dashed border-border pt-4"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        setPending("dev");
-        setError(null);
-        const { error } = await createClient().auth.signInWithPassword({ email, password });
-        setPending(null);
-        if (error) setError(error.message);
-        else onDone();
-      }}
-    >
-      <p className="text-[11px] font-semibold tracking-wide text-warning uppercase">Dev sign-in (local only)</p>
-      <Input placeholder="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" />
-      <Input
-        placeholder="password"
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        autoComplete="current-password"
-      />
-      <Button type="submit" variant="subtle" className="w-full justify-center" disabled={!!pending}>
-        Sign in
-      </Button>
-      {error && <p className="text-[13px] text-danger">{error}</p>}
-    </form>
+      {mode === "signin" && (
+        <>
+          <Button size="md" className="w-full justify-center" disabled={!!pending} onClick={() => oauth("google")}>
+            {pending === "google" ? <Spinner size={16} /> : <GoogleIcon />}
+            Continue with Google
+          </Button>
+          <Button size="md" className="w-full justify-center" disabled={!!pending} onClick={() => oauth("azure")}>
+            {pending === "azure" ? <Spinner size={16} /> : <MicrosoftIcon />}
+            Continue with Microsoft
+          </Button>
+          <div className="flex items-center gap-3 py-1 text-xs text-faint">
+            <span className="h-px flex-1 bg-border" /> or use email <span className="h-px flex-1 bg-border" />
+          </div>
+        </>
+      )}
+
+      <form onSubmit={submit} className="space-y-3">
+        {mode === "signup" && (
+          <div>
+            <Label htmlFor="full-name">Your name</Label>
+            <Input id="full-name" value={fullName} onChange={(e) => setFullName(e.target.value)} autoComplete="name" required />
+          </div>
+        )}
+        <div>
+          <Label htmlFor="email">Email</Label>
+          <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
+        </div>
+        {mode !== "forgot" && (
+          <div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Password</Label>
+              {mode === "signin" && (
+                <button type="button" onClick={() => switchMode("forgot")} className="mb-1 text-xs text-accent hover:underline">
+                  Forgot password?
+                </button>
+              )}
+            </div>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete={mode === "signup" ? "new-password" : "current-password"}
+              minLength={mode === "signup" ? 10 : undefined}
+              required
+            />
+            {mode === "signup" && <p className="mt-1 text-xs text-faint">{PASSWORD_RULES}</p>}
+          </div>
+        )}
+        <Button type="submit" variant="primary" size="md" className="w-full justify-center" disabled={!!pending}>
+          {pending === "password" && <Spinner size={16} className="text-current" />}
+          {mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : "Email me a reset link"}
+        </Button>
+      </form>
+
+      <p className="text-center text-[13px] text-muted">
+        {mode === "signin" ? (
+          <>
+            New here?{" "}
+            <button type="button" onClick={() => switchMode("signup")} className="font-medium text-accent hover:underline">
+              Create an account
+            </button>
+          </>
+        ) : (
+          <button type="button" onClick={() => switchMode("signin")} className="font-medium text-accent hover:underline">
+            Back to sign in
+          </button>
+        )}
+      </p>
+    </div>
   );
 }

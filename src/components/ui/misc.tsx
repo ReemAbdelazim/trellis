@@ -218,11 +218,3 @@ export function Kbd({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function SectionHeading({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
-  return (
-    <div className="mb-2 flex items-center justify-between">
-      <h2 className="text-[15px] font-semibold">{children}</h2>
-      {action}
-    </div>
-  );
-}

@@ -7,7 +7,7 @@ import { qk } from "@/lib/queries/keys";
 import { useRealtime } from "@/lib/queries/realtime";
 import { newId, useCreateTask, useProjectTasks, useUpdateTask } from "@/lib/queries/tasks";
 import { useTaskPane } from "@/lib/task-pane";
-import { useLocalFlag } from "@/lib/use-local-flag";
+import { useLocalFlag } from "@/lib/use-local-storage";
 import { nextPosition } from "@/lib/utils";
 import { PageLoader } from "@/components/ui/misc";
 import { MonthCalendar } from "../calendar/month-calendar";

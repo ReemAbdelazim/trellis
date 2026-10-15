@@ -11,6 +11,7 @@ import { Input, Label, Select } from "@/components/ui/input";
 import { Pill, Spinner } from "@/components/ui/misc";
 import { cn, errorMessage } from "@/lib/utils";
 import { SettingRow, SettingsCard, Switch } from "./switch";
+import { SecurityCard } from "./security-card";
 import type { Profile } from "@/types/models";
 import { applyTheme, useTheme, type Theme } from "@/lib/theme";
 import { signOut } from "@/lib/auth";
@@ -34,6 +35,7 @@ export function SettingsPage() {
       </div>
       <ProfileCard key={`${profile.full_name}|${profile.title ?? ""}`} profile={profile} />
       <NotificationsCard profile={profile} />
+      <SecurityCard email={profile.email} />
       <AppearanceCard />
       <SettingsCard title="Session">
         <div className="flex items-center justify-between gap-4 py-3">

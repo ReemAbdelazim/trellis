@@ -19,7 +19,17 @@ export function serviceClient() {
   return createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
-/** Resolves the signed-in, active caller from the request's bearer token. */
+/** Assurance level of an access token already validated by getUser(). */
+function sessionAal(token: string): string | undefined {
+  try {
+    const payload = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(payload)).aal;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Resolves the signed-in, active caller (with two-factor) from the request's bearer token. */
 export async function requireCaller(req: Request): Promise<Caller> {
   const authorization = req.headers.get("Authorization");
   if (!authorization?.startsWith("Bearer ")) throw new HttpError(401, "Sign in required");
@@ -28,8 +38,10 @@ export async function requireCaller(req: Request): Promise<Caller> {
     global: { headers: { Authorization: authorization } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { data, error } = await db.auth.getUser(authorization.slice("Bearer ".length));
+  const token = authorization.slice("Bearer ".length);
+  const { data, error } = await db.auth.getUser(token);
   if (error || !data.user) throw new HttpError(401, "Sign in required");
+  if (sessionAal(token) !== "aal2") throw new HttpError(403, "Two-factor verification required");
 
   const { data: profile } = await db
     .from("profiles")

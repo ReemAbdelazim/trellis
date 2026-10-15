@@ -11,7 +11,7 @@ import { qk } from "@/lib/queries/keys";
 import { useRealtime } from "@/lib/queries/realtime";
 import { useProjectTasks } from "@/lib/queries/tasks";
 import { cn, toDate } from "@/lib/utils";
-import { useToday } from "../calendar/hooks";
+import { useToday } from "@/lib/hooks";
 import { ChartCard, ColumnChart, EmptyChart, LegendItem, StackedBars, TrendChart } from "../dashboard/charts";
 
 const MAX_PEOPLE = 10;

@@ -11,6 +11,7 @@ import type { Profile } from "@/types/models";
 
 type SessionState =
   | { status: "signed-out" }
+  | { status: "needs-mfa" }
   | { status: "no-access" }
   | { status: "ok"; profile: Profile };
 
@@ -22,6 +23,9 @@ async function loadSession(): Promise<SessionState> {
     await supabase.auth.signOut({ scope: "local" });
     return { status: "signed-out" };
   }
+  // Every account uses two-factor; the database refuses data to sessions without it.
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (aal?.currentLevel !== "aal2") return { status: "needs-mfa" };
   const { data: profile, error: pErr } = await supabase.from("profiles").select("*").eq("id", data.user.id).maybeSingle();
   if (pErr) throw pErr;
   if (!profile || profile.status !== "active") return { status: "no-access" };
@@ -31,14 +35,14 @@ async function loadSession(): Promise<SessionState> {
 const MeContext = createContext<Profile | null>(null);
 
 /**
- * Gate for every signed-in page: resolves the session and profile, redirects
- * to /login or /no-access, and provides the profile to the tree.
+ * Gate for every signed-in page: resolves the session, two-factor state and
+ * profile, redirects to /login, /mfa or /no-access, and provides the profile.
  */
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const qc = useQueryClient();
-  const { data, isError, refetch } = useQuery({
+  const { data, isError, isFetching, refetch } = useQuery({
     queryKey: qk.me,
     queryFn: loadSession,
     staleTime: 5 * 60_000,
@@ -56,13 +60,17 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }, [qc, router]);
 
   useEffect(() => {
+    if (isFetching) return; // act on a fresh answer, not a cached one being re-checked
     if (data?.status === "signed-out") {
       const next = `${pathname}${window.location.search}`;
       router.replace(`${routes.login}?next=${encodeURIComponent(next)}`);
+    } else if (data?.status === "needs-mfa") {
+      const next = `${pathname}${window.location.search}`;
+      router.replace(`${routes.mfa}?next=${encodeURIComponent(next)}`);
     } else if (data?.status === "no-access") {
       router.replace("/no-access");
     }
-  }, [data, pathname, router]);
+  }, [data, isFetching, pathname, router]);
 
   if (isError) {
     return (

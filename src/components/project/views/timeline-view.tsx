@@ -16,7 +16,7 @@ import { sortByPosition, useProjectTasks, useUpdateTask, type TaskItem } from "@
 import { useTaskPane } from "@/lib/task-pane";
 import { cn, toISODate } from "@/lib/utils";
 import type { TaskUpdate } from "@/types/models";
-import { useMediaQuery, useToday } from "../calendar/hooks";
+import { useMediaQuery, useToday } from "@/lib/hooks";
 import { DependencyLayer, type Edge } from "../timeline/dependency-layer";
 import type { LinkHandlers } from "../timeline/timeline-bar";
 import { TimelineSectionRow, TimelineTaskRow } from "../timeline/timeline-row";
@@ -32,7 +32,7 @@ import {
   type Zoom,
 } from "../timeline/timeline-scale";
 import { TASK_DRAG_TYPE, UnscheduledTray } from "../timeline/unscheduled-tray";
-import { projectDependenciesKey, useProjectDependencies } from "../timeline/use-project-dependencies";
+import { useProjectDependencies } from "@/lib/queries/project-dependencies";
 
 type Group = { id: string; name: string; tasks: TaskItem[] };
 type Row = { kind: "section"; group: Group } | { kind: "task"; task: TaskItem };
@@ -54,7 +54,7 @@ export function ProjectTimelineView({ projectId }: { projectId: string }) {
   const leftW = narrow ? 150 : 260;
 
   useRealtime({ table: "tasks", filter: `project_id=eq.${projectId}`, invalidate: [qk.projectTasks(projectId)] });
-  useRealtime({ table: "task_dependencies", invalidate: [projectDependenciesKey(projectId)] });
+  useRealtime({ table: "task_dependencies", invalidate: [qk.projectDependencies(projectId)] });
 
   const [zoom, setZoom] = useState<Zoom>("weeks");
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());

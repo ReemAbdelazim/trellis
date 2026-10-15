@@ -24,7 +24,8 @@ export type ProjectUpdate = Update<"projects">;
 export type ProjectMember = Row<"project_members">;
 export type Section = Row<"sections">;
 export type ProjectStatusUpdate = Row<"project_status_updates">;
-export type Task = Row<"tasks">;
+/** A task row as the app reads it (without the server-side full-text `search` column). */
+export type Task = Omit<Row<"tasks">, "search">;
 export type TaskInsert = Insert<"tasks">;
 export type TaskUpdate = Update<"tasks">;
 export type TaskDependency = Row<"task_dependencies">;
@@ -40,7 +41,7 @@ export type Goal = Row<"goals">;
 export type GoalStatusUpdate = Row<"goal_status_updates">;
 export type Portfolio = Row<"portfolios">;
 export type PortfolioProject = Row<"portfolio_projects">;
-export type ProjectStats = Database["public"]["Views"]["project_stats"]["Row"];
+export type ProjectStats = Database["public"]["Functions"]["project_stats"]["Returns"][number];
 
 /** Option inside a single/multi select custom field's `config.options`. */
 export interface FieldOption {

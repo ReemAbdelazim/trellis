@@ -25,7 +25,7 @@ const PRIVACY = {
   private: { icon: Lock, label: "Private", note: "Only invited members can see it" },
 } as const;
 
-export function Panel({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) {
+function Panel({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) {
   return (
     <section className={cn("rounded-xl border border-border bg-surface p-4 shadow-card", className)}>
       <h2 className="mb-3 text-[14px] font-semibold">{title}</h2>

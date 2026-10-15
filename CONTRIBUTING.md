@@ -25,18 +25,23 @@ Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). The short version:
 | Where | What |
 |---|---|
 | `supabase/migrations/` | Schema, row-level security, triggers. **All permissions live here.** |
-| `supabase/functions/` | Edge Functions (Deno): `invite`, `admin`, `notifications` |
+| `supabase/functions/` | Edge Functions (Deno): `invite`, `admin`, `files`, `notifications`, `auth-email` |
 | `src/app/` | Pages (static export: no server code, records use `?id=`) |
 | `src/lib/queries/` | Data hooks (TanStack Query) — use these instead of calling Supabase directly |
 | `src/lib/routes.ts` | Every in-app URL |
 | `src/components/` | UI, one folder per feature; shared primitives in `components/ui` |
-| `scripts/` | Test suites and dev seeding |
+| `scripts/` | Test suites, load test, dev seeding, Gmail setup |
 
 ## Guidelines
 
 - **Security first.** The browser is untrusted. Any rule about who can see or change something
   must be enforced in a migration (RLS policy or trigger), not just hidden in the UI. Add a test
   for it in `scripts/test-db.mjs`.
+- **Fast at scale.** RLS policies run for every row a query touches. Make list policies set-based
+  (compare against `my_visible_project_ids()` and the like), never a per-row function call; see the
+  performance rule in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). If you touch policies, run
+  `scripts/load-test.sql` (500 people's worth of data, rolled back afterwards):
+  `docker exec -i supabase_db_seeds-tasks psql -U postgres -f - < scripts/load-test.sql`.
 - **Database changes** go in a **new** migration file (`npx supabase migration new <name>`).
   Never edit a migration that has already been released. Then run `npm run db:reset` and
   `npm run db:types`.
@@ -50,8 +55,9 @@ Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). The short version:
 
 ```bash
 npm run lint && npm run typecheck && npm run build
+npx --yes knip@5                     # no unused files, exports or dependencies
 npm run db:reset && npm run test:db
-npm run seed:dev && npm run test:functions && npm run test:emails   # with functions serving
+npm run db:reset && npm run seed:dev && npm run test:functions && npm run test:emails   # with functions serving
 ```
 
 CI runs all of this on your PR.

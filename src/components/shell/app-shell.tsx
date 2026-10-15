@@ -7,7 +7,7 @@ import { Topbar } from "./topbar";
 import { TaskPane } from "@/components/task/task-pane";
 import { SearchPalette } from "./search-palette";
 import { cn } from "@/lib/utils";
-import { useLocalFlag } from "@/lib/use-local-flag";
+import { useLocalFlag } from "@/lib/use-local-storage";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileNav, setMobileNav] = useState(false);

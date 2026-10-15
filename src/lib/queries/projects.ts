@@ -47,9 +47,9 @@ export function useProjectStats() {
   return useQuery({
     queryKey: qk.projectStats,
     queryFn: async (): Promise<Map<string, ProjectStats>> => {
-      const { data, error } = await supabase().from("project_stats").select("*");
+      const { data, error } = await supabase().rpc("project_stats");
       if (error) throw error;
-      return new Map(data.map((s) => [s.project_id!, s]));
+      return new Map(data.map((s) => [s.project_id, s]));
     },
   });
 }
@@ -178,7 +178,7 @@ export function useSetProjectMember() {
     },
     onSettled: (_d, _e, v) => {
       qc.invalidateQueries({ queryKey: qk.projectMembers(v.projectId) });
-      qc.invalidateQueries({ queryKey: ["project-members", "all"] });
+      qc.invalidateQueries({ queryKey: qk.allProjectMemberships });
       qc.invalidateQueries({ queryKey: qk.allMyProjectIds });
       qc.invalidateQueries({ queryKey: qk.projectAccess(v.projectId) });
       qc.invalidateQueries({ queryKey: qk.projects });
@@ -332,7 +332,7 @@ export function usePostStatusUpdate(projectId: string) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.projectStatusUpdates(projectId) });
-      qc.invalidateQueries({ queryKey: ["project-status-updates", "latest"] });
+      qc.invalidateQueries({ queryKey: qk.allLatestStatusUpdates });
       qc.invalidateQueries({ queryKey: qk.project(projectId) });
       qc.invalidateQueries({ queryKey: qk.projects });
     },

@@ -21,4 +21,3 @@ export function createClient() {
   return client;
 }
 
-export type SupabaseBrowserClient = ReturnType<typeof createClient>;

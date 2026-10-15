@@ -4,16 +4,11 @@ import { Fragment } from "react";
 import { useProfileMap } from "@/lib/queries/people";
 
 /** Mentions are stored inline as @[Display Name](user-uuid). */
-export const MENTION_RE = /@\[([^\]]+)\]\(([0-9a-f-]{36})\)/g;
+const MENTION_RE = /@\[([^\]]+)\]\(([0-9a-f-]{36})\)/g;
 const URL_RE = /(https?:\/\/[^\s<>()]+[^\s<>().,;:!?'")\]])/g;
 
 export function extractMentions(body: string): string[] {
   return [...new Set([...body.matchAll(MENTION_RE)].map((m) => m[2]))];
-}
-
-/** Plain-text version (for previews and emails). */
-export function mentionsToPlain(body: string) {
-  return body.replace(MENTION_RE, "@$1");
 }
 
 function Linkified({ text }: { text: string }) {

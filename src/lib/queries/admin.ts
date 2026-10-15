@@ -9,7 +9,7 @@ import type { Invitation, OrgSettings, Profile, UserRole } from "@/types/models"
 const supabase = () => createClient();
 
 /** Turns raw DB guard / RLS messages into something people can act on. */
-export function friendlyDbError(err: unknown): Error {
+function friendlyDbError(err: unknown): Error {
   const msg = err && typeof err === "object" && "message" in err ? String(err.message) : String(err ?? "");
   if (/at least one active admin/i.test(msg)) return new Error("The workspace must keep at least one active admin");
   if (/only admins can change roles/i.test(msg)) return new Error("Only admins can change roles or account status");
@@ -105,7 +105,7 @@ export function useUpdateOrgSettings() {
 }
 
 export interface EmailStatus {
-  /** Resend key, sender and app URL are set as function secrets. */
+  /** Gmail sender and app URL are set as function secrets. */
   emailConfigured: boolean;
   /** The hourly database job knows where to send notifications. */
   deliveryConnected: boolean;

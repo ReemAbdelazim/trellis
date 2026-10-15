@@ -88,7 +88,7 @@ export function useUpdateField(projectId: string) {
       qc.invalidateQueries({ queryKey: qk.customFields(projectId) });
       if (v.removedOptionIds?.length) {
         qc.invalidateQueries({ queryKey: qk.fieldValues(projectId) });
-        qc.invalidateQueries({ queryKey: ["task-field-values"] });
+        qc.invalidateQueries({ queryKey: qk.allTaskFieldValues });
       }
     },
   });
@@ -138,7 +138,7 @@ export function useDeleteField(projectId: string) {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: qk.customFields(projectId) });
       qc.invalidateQueries({ queryKey: qk.fieldValues(projectId) });
-      qc.invalidateQueries({ queryKey: ["task-field-values"] });
+      qc.invalidateQueries({ queryKey: qk.allTaskFieldValues });
     },
   });
 }

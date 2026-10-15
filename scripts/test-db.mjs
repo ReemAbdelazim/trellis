@@ -1,34 +1,11 @@
 // Integration tests for the database security model and business logic.
 // Runs against the LOCAL Supabase stack:  npm run test:db
-import { createClient } from "@supabase/supabase-js";
-import { readFileSync } from "node:fs";
+import { adminClient, anonClient, reporter, signInWithMfa } from "./lib/helpers.mjs";
 
-const env = Object.fromEntries(
-  readFileSync(new URL("../.env.local", import.meta.url), "utf8")
-    .split("\n")
-    .filter((l) => l.includes("=") && !l.startsWith("#"))
-    .map((l) => [l.slice(0, l.indexOf("=")).trim(), l.slice(l.indexOf("=") + 1).trim()]),
-);
-const URL_ = env.NEXT_PUBLIC_SUPABASE_URL;
-const PUB = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-const SECRET = env.SUPABASE_SECRET_KEY;
-if (!URL_.includes("127.0.0.1") && !URL_.includes("localhost")) throw new Error("Refusing to run against a non-local database");
-
-const admin = createClient(URL_, SECRET, { auth: { persistSession: false } });
+const admin = adminClient();
+const { check, finish } = reporter();
 const run = Date.now().toString(36);
 const PASSWORD = "test-password-123";
-let failures = 0;
-let passes = 0;
-
-function check(name, cond, extra) {
-  if (cond) {
-    passes++;
-    console.log(`  ✓ ${name}`);
-  } else {
-    failures++;
-    console.log(`  ✗ ${name}`, extra ?? "");
-  }
-}
 
 async function makeUser(email) {
   const { data, error } = await admin.auth.admin.createUser({
@@ -40,12 +17,8 @@ async function makeUser(email) {
   return { user: data?.user, error };
 }
 
-async function as(email) {
-  const c = createClient(URL_, PUB, { auth: { persistSession: false } });
-  const { error } = await c.auth.signInWithPassword({ email, password: PASSWORD });
-  if (error) throw new Error(`sign in ${email}: ${error.message}`);
-  return c;
-}
+/** Signed-in client for a test user, with two-factor completed (aal2). */
+const as = async (email) => (await signInWithMfa(email, PASSWORD)).client;
 
 const uid = async (c) => (await c.auth.getUser()).data.user.id;
 
@@ -318,7 +291,7 @@ const { error: hijack } = await cm1.from("goals").update({ owner_id: m1id }).eq(
 const { data: goalAfter } = await cm1.from("goals").update({ created_by: m1id, name: "Renamed" }).eq("id", goal.id).select().single();
 check("goal ownership can't be taken over", !!hijack && goalAfter?.created_by === m2id && goalAfter?.name === "Renamed");
 
-const anon = createClient(URL_, PUB, { auth: { persistSession: false } });
+const anon = anonClient();
 const { error: anonRpc } = await anon.rpc("project_access", { p_project: priv.id });
 check("anonymous visitors can't call permission helpers", !!anonRpc);
 const { error: oracle } = await cm2.rpc("project_access", { p_project: priv.id, p_user: m1id });
@@ -351,16 +324,36 @@ const { error: upErr } = await cm1.storage.from("attachments").upload(path, new 
 check("project owner can upload attachment", !upErr, upErr?.message);
 const { error: dlGuest } = await cg.storage.from("attachments").download(path);
 check("assigned guest can download it", !dlGuest, dlGuest?.message);
-const { data: m3 } = await makeUser(`m3-${run}@seedsofleadership.ca`);
+const { user: m3 } = await makeUser(`m3-${run}@seedsofleadership.ca`);
 const cm3 = await as(`m3-${run}@seedsofleadership.ca`);
 const { error: dlOther } = await cm3.storage.from("attachments").download(path);
 check("unrelated member cannot download it", !!dlOther);
-void m3;
 
 const { error: cfgErr } = await ca.rpc("configure_notifications", { p_url: "https://evil.example", p_secret: "x" });
 check("even admins can't set email delivery config directly", !!cfgErr);
 const { error: statusErr } = await cm1.rpc("notification_delivery_status");
 check("members can't read the delivery secret", !!statusErr);
+
+console.log("\nTwo-factor & password accounts");
+const pwOnly = anonClient();
+await pwOnly.auth.signInWithPassword({ email: `m3-${run}@seedsofleadership.ca`, password: PASSWORD });
+const { data: aal1Projects } = await pwOnly.from("projects").select("id");
+check("password-only session (no two-factor) sees no data", aal1Projects?.length === 0, aal1Projects?.length);
+const { data: aal1Access } = await pwOnly.rpc("project_access", { p_project: pub.id });
+check("…and permission helpers answer nothing", aal1Access === null, aal1Access);
+const { error: aal1Write } = await pwOnly.from("tasks").insert({ name: "sneaky", created_by: m3.id });
+check("…and can't write", !!aal1Write);
+
+const signupEmail = `pw-${run}@seedsofleadership.ca`;
+const { data: signup, error: signupErr } = await anonClient().auth.signUp({ email: signupEmail, password: PASSWORD });
+check("Seeds email can sign up with a password", !signupErr && !!signup.user, signupErr?.message);
+const { data: earlyProfile } = await admin.from("profiles").select("id").eq("email", signupEmail);
+check("…but gets no profile until the email is confirmed", earlyProfile?.length === 0);
+await admin.auth.admin.updateUserById(signup.user.id, { email_confirm: true });
+const { data: confirmedProfile } = await admin.from("profiles").select("role").eq("email", signupEmail).single();
+check("…and becomes a member once confirmed", confirmedProfile?.role === "member", confirmedProfile);
+const { error: outsiderSignup } = await anonClient().auth.signUp({ email: `nope-${run}@gmail.com`, password: PASSWORD });
+check("outsiders can't sign up with a password", !!outsiderSignup);
 
 console.log("\nAccount removal");
 const { error: removeErr } = await admin.auth.admin.deleteUser(m1.user.id);
@@ -368,5 +361,4 @@ check("removing a user who created work succeeds", !removeErr, removeErr?.messag
 const { data: orphan } = await admin.from("tasks").select("created_by").eq("id", t1).single();
 check("…and their tasks remain, unattributed", orphan && orphan.created_by === null);
 
-console.log(`\n${passes} passed, ${failures} failed\n`);
-process.exit(failures ? 1 : 0);
+finish();

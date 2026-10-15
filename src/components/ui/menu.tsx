@@ -1,12 +1,11 @@
 "use client";
 
 import { DropdownMenu as M } from "radix-ui";
-import { Check, ChevronRight } from "lucide-react";
+import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Menu = M.Root;
 export const MenuTrigger = M.Trigger;
-export const MenuSub = M.Sub;
 
 const contentClass =
   "z-[60] min-w-48 overflow-hidden rounded-lg border border-border bg-surface p-1 text-sm shadow-pop";
@@ -58,24 +57,6 @@ export function MenuCheckItem({
       <span className="flex w-4 justify-center text-accent">{checked && <Check size={14} />}</span>
       {children}
     </M.Item>
-  );
-}
-
-export function MenuSubTrigger({ children, icon }: { children: React.ReactNode; icon?: React.ReactNode }) {
-  return (
-    <M.SubTrigger className="flex h-8 cursor-pointer items-center gap-2 rounded-md px-2 outline-none select-none data-[highlighted]:bg-surface-2 data-[state=open]:bg-surface-2">
-      {icon && <span className="flex w-4 justify-center text-muted">{icon}</span>}
-      <span className="flex-1">{children}</span>
-      <ChevronRight size={14} className="text-muted" />
-    </M.SubTrigger>
-  );
-}
-
-export function MenuSubContent(props: React.ComponentProps<typeof M.SubContent>) {
-  return (
-    <M.Portal>
-      <M.SubContent sideOffset={4} className={contentClass} {...props} />
-    </M.Portal>
   );
 }
 

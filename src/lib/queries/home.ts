@@ -12,7 +12,7 @@ const supabase = () => createClient();
  */
 export function useCollaborators(userId: string) {
   return useQuery({
-    queryKey: ["collaborators", userId],
+    queryKey: qk.collaborators(userId),
     queryFn: async (): Promise<{ userId: string; shared: number }[]> => {
       const sb = supabase();
       const { data: mine, error } = await sb.from("project_members").select("project_id").eq("user_id", userId);

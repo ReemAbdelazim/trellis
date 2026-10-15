@@ -36,7 +36,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useProfileMap } from "@/lib/queries/people";
 import { cn, toDate, toISODate } from "@/lib/utils";
 import type { Task } from "@/types/models";
-import { useElementSize, useToday } from "./hooks";
+import { useElementSize, useToday } from "@/lib/hooks";
 
 export type CalendarTask = Pick<
   Task,
@@ -79,7 +79,7 @@ function taskRange(t: CalendarTask): { s: Date; e: Date } | null {
 }
 
 /** Shift a task's dates by whole days, keeping nulls null. */
-export function shiftTaskDates(t: Pick<Task, "start_date" | "due_date">, days: number): CalendarDates {
+function shiftTaskDates(t: Pick<Task, "start_date" | "due_date">, days: number): CalendarDates {
   const shift = (v: string | null) => (v ? toISODate(addDays(toDate(v)!, days)) : null);
   return { start_date: shift(t.start_date), due_date: shift(t.due_date) };
 }

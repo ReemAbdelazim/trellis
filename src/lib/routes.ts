@@ -14,6 +14,7 @@ export const routes = {
   admin: "/admin",
   settings: "/settings",
   login: "/login",
+  mfa: "/mfa",
 
   project: (id: string, view?: string) => `/project?id=${id}${view ? `&view=${view}` : ""}`,
   team: (id: string) => `/team?id=${id}`,
@@ -27,7 +28,7 @@ export const routes = {
 };
 
 /** Sub-path the site is served from (e.g. "/seeds-tasks" on GitHub Pages). */
-export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 /** Absolute URL for an in-app path, for copying, emails and OAuth redirects. */
 export function absoluteUrl(path: string) {

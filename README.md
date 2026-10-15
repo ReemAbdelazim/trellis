@@ -1,13 +1,14 @@
 # Seeds Tasks
 
 Open-source work management for small organizations: projects, tasks, boards, timelines, goals and
-more. Built for [Seeds of Leadership](https://seedsofleadership.ca), and free for anyone to run.
+more. Built for [Seeds of Leadership](https://seedsofleadership.ca), free for anyone to run.
 
-Your team signs in with **Google or Microsoft**. Nobody has to share codes or IDs. Anyone with your
-organization's email domain joins automatically, and outside partners join as guests by invitation.
-
-It runs entirely on free tiers: **GitHub Pages** hosts the site and **Supabase** provides the
-database, login, file storage and scheduled emails.
+- **Sign-in**: Google, Microsoft, or email + password (with reset-by-email). Anyone with your
+  organization's email domain can join; outside partners join as guests by invitation.
+- **Two-factor sign-in is required for everyone**: an authenticator app set up by scanning a QR code.
+- **Runs on free tiers**: the site is static files on **GitHub Pages**. **Supabase** provides the
+  database, sign-in, scheduled jobs and server functions. Emails go out through **Gmail** (Google
+  Workspace, about 2,000 a day), and attachments can live on **Cloudflare R2** (10 GB free).
 
 ---
 
@@ -19,44 +20,57 @@ database, login, file storage and scheduled emails.
   comments with @mentions, followers, likes and a full activity history
 - **Custom fields** (text, number, date, single/multi select, people, checkbox) and **rules**
   ("when a task moves to Done, mark it complete")
-- **My tasks**, **Home**, **Inbox** (live), global search (Ctrl/Cmd + K)
-- **Email notifications**: an hourly email when someone @mentions you, plus a morning digest of
-  anything still unread (8am in your own time zone)
+- **My tasks**, **Home**, **Inbox** (updates live), global search (Ctrl/Cmd + K)
+- **Email notifications**: hourly when someone @mentions you, plus a morning digest (8am in your
+  time zone) of anything still unread
 - **Goals**, **Portfolios** and **Workload**
 - **Teams**, project privacy (workspace / team / private) and project roles (admin, editor,
   commenter, viewer)
-- **Admin console**: people, roles, deactivation, guest invitations, allowed email domains, email
-  setup
-- Live updates across users, light and dark themes, works on phones, tablets and large monitors
+- **Admin console**: people, roles, deactivation, removing users, resetting someone's two-factor,
+  guest invitations, allowed email domains, email setup
+- Works on phones, tablets, laptops and large monitors; light and dark themes
 
 ## How it works
 
 ```
-Browser (static Next.js app on GitHub Pages)
-   │  signs in with Google / Microsoft (Supabase Auth, PKCE)
-   │  reads & writes data directly ──────────────▶ Supabase Postgres
-   │                                                 • Row-level security decides every permission
-   │                                                 • Triggers: activity log, notifications, rules
-   │                                                 • pg_cron: hourly notification run
-   └─ calls Edge Functions for privileged work ──▶ invite · admin · notifications (emails via Resend)
+Browser: static Next.js app on GitHub Pages
+  │  signs in (Google / Microsoft / password) + authenticator code  ─▶ Supabase Auth
+  │  reads & writes data directly ─────────────────────────────────▶ Supabase Postgres
+  │                                     • row-level security checks every read and write
+  │                                     • two-factor required on every table
+  │                                     • triggers: activity, notifications, rules
+  │                                     • pg_cron: hourly mention emails, 15-min digest runs
+  └─ privileged work ──▶ Edge Functions: invite · admin · files · notifications · auth-email
+                              │                                     │
+                              ▼                                     ▼
+                     Cloudflare R2 (attachments)          Gmail API (all email)
 ```
 
-Security lives in the database. Every read and write is checked by Postgres row-level security,
-so the website holds no secrets. The automated test suites check these rules, including
-dozens of attack scenarios.
+All permissions are enforced in the database, so the website holds no secrets. The test suites
+cover the security rules, including attack scenarios; see [Checks](#checks).
+
+**Scale.** A load test with 500 people's worth of data (300 projects, 66,000 tasks, 100,000
+comments) runs every main query in under 15 ms (`scripts/load-test.sql`). Supabase's free plan allows
+about 200 people connected to live updates at the same time. Beyond that the app refreshes every
+30 seconds instead, and [Supabase Pro](https://supabase.com/pricing) or self-hosting removes the
+limit (see [docs/SELF_HOSTING_ORACLE.md](docs/SELF_HOSTING_ORACLE.md)).
 
 More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Run your own
 
-Setting up a copy for your organization takes about 45 minutes and costs nothing. Follow
-**[docs/SELF_HOSTING.md](docs/SELF_HOSTING.md)**:
+About an hour, once, all on free tiers. Follow **[docs/SELF_HOSTING.md](docs/SELF_HOSTING.md)**:
 
 1. Fork this repository.
-2. Create a free Supabase project and push the database and functions.
-3. Register the app with Google and/or Microsoft for sign-in.
-4. Set two repository variables and turn on GitHub Pages.
-5. Sign in first: you become the admin.
+2. Create a free Supabase project; push the database and functions.
+3. Register sign-in with Google and/or Microsoft.
+4. Authorize a Gmail sender for email (`npm run setup:gmail`).
+5. Optional: create a Cloudflare R2 bucket for attachments.
+6. Set two repository variables and turn on GitHub Pages.
+7. Sign in first: you become the admin.
+
+When you outgrow Supabase's free plan, you can move to your own free Oracle Cloud server; see
+**[docs/SELF_HOSTING_ORACLE.md](docs/SELF_HOSTING_ORACLE.md)**.
 
 ## Develop locally
 
@@ -65,33 +79,35 @@ and Git.
 
 ```bash
 npm install
-npm run db:start      # local Supabase in Docker (first run downloads images)
+npm run db:start          # local Supabase in Docker (first run downloads images)
 node scripts/ci-env.mjs   # writes .env.local for the local stack
-npm run seed:dev      # demo people and projects
-npm run dev           # http://localhost:3000, use the "Dev sign-in" form
+npm run db:reset && npm run seed:dev
+npm run dev               # http://localhost:3000
 ```
 
-Demo accounts (local only, password `seeds-dev-password`): `aya@seedsofleadership.ca` (admin),
-`jordan@`, `sam@`, `priya@seedsofleadership.ca` (members) and `guest@partner.org` (guest).
+Demo accounts (local only), all with the password `seeds-dev-2026`: `aya@seedsofleadership.ca`
+(admin); `jordan@`, `sam@` and `priya@seedsofleadership.ca` (members); `guest@partner.org` (guest).
+Each one sets up two-factor with any authenticator app the first time it signs in. Locally, account
+emails (password resets, confirmations) are caught by the mail viewer at http://127.0.0.1:54324.
 
 ### Checks
 
 ```bash
 npm run lint && npm run typecheck && npm run build
-npm run test:db         # database security & logic (needs db:start)
-npm run test:functions  # Edge Functions (needs functions running, see CONTRIBUTING.md)
-npm run test:emails     # notification emails against a mock email provider
+npm run test:db          # database security & logic
+# with functions running: npx supabase functions serve --env-file supabase/functions/.env.test
+npm run test:functions   # Edge Functions
+npm run test:emails      # every email, against a mock Gmail
 ```
 
-All of these run automatically on every pull request.
+All of these run automatically on every pull request
+([.github/workflows/ci.yml](.github/workflows/ci.yml)).
 
 ## Contributing
 
-Ideas, bug reports and pull requests are very welcome. If there's a feature you'd like, open an
-issue to talk it through, or send a PR. See **[CONTRIBUTING.md](CONTRIBUTING.md)** for how
-the code is organized and what a good PR looks like.
-
-Found a security problem? Please report it privately; see [SECURITY.md](SECURITY.md).
+Ideas, bug reports and pull requests are very welcome! Open an issue to discuss a feature, or send a
+PR. See **[CONTRIBUTING.md](CONTRIBUTING.md)** for how the code is organized and what a good PR looks
+like. Report security problems privately: [SECURITY.md](SECURITY.md).
 
 ## License
 

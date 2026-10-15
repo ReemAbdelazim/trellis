@@ -11,6 +11,12 @@ export const qk = {
   projectAccess: (id: string) => ["project-access", id] as const,
   projectStats: ["project-stats"] as const,
   projectStatusUpdates: (id: string) => ["project-status-updates", id] as const,
+  /** Latest status update per project (portfolio "Updated" column). */
+  latestStatusUpdates: (projectIds: string[]) => ["project-status-updates", "latest", [...projectIds].sort().join(",")] as const,
+  allLatestStatusUpdates: ["project-status-updates", "latest"] as const,
+  /** Every project membership the user can see (projects browser). */
+  allProjectMemberships: ["project-members", "all"] as const,
+  collaborators: (userId: string) => ["collaborators", userId] as const,
   favorites: ["favorites"] as const,
   sections: (projectId: string) => ["sections", projectId] as const,
 
@@ -31,6 +37,8 @@ export const qk = {
   attachments: (taskId: string) => ["attachments", taskId] as const,
   followers: (taskId: string) => ["followers", taskId] as const,
   dependencies: (taskId: string) => ["dependencies", taskId] as const,
+  projectDependencies: (projectId: string) => ["project-dependencies", projectId] as const,
+  allProjectDependencies: ["project-dependencies"] as const,
   likes: (taskId: string) => ["likes", taskId] as const,
   taskTags: (taskId: string) => ["task-tags", taskId] as const,
   tags: ["tags"] as const,
@@ -38,6 +46,7 @@ export const qk = {
   customFields: (projectId: string) => ["custom-fields", projectId] as const,
   fieldValues: (projectId: string) => ["field-values", projectId] as const,
   taskFieldValues: (taskId: string) => ["task-field-values", taskId] as const,
+  allTaskFieldValues: ["task-field-values"] as const,
   rules: (projectId: string) => ["rules", projectId] as const,
 
   notifications: ["notifications"] as const,
@@ -48,4 +57,6 @@ export const qk = {
   portfolios: ["portfolios"] as const,
   portfolio: (id: string) => ["portfolio", id] as const,
   invitations: ["invitations"] as const,
+  mfaFactor: ["mfa-factor"] as const,
+  hasPassword: ["has-password"] as const,
 };

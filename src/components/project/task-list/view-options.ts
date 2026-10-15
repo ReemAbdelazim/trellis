@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useMemo } from "react";
 import { differenceInCalendarDays, endOfWeek, startOfWeek } from "date-fns";
 import { toDate } from "@/lib/utils";
+import { useLocalString } from "@/lib/use-local-storage";
 import type { TaskItem } from "@/lib/queries/tasks";
 import type { Profile, Section } from "@/types/models";
 
@@ -38,7 +39,6 @@ export const SORT_LABEL: Record<SortKey, string> = {
   created: "Creation date",
 };
 
-const EVENT = "seeds-view-options";
 const storageKey = (projectId: string) => `seeds:view-options:${projectId}`;
 
 function parse(raw: string | null): ViewOptions {
@@ -58,39 +58,10 @@ function parse(raw: string | null): ViewOptions {
 
 /** Filter/sort choices for a project, stored in localStorage (SSR snapshot = defaults). */
 export function useViewOptions(projectId: string) {
-  const key = storageKey(projectId);
-  // The snapshot is the raw string so it is referentially stable between reads.
-  const raw = useSyncExternalStore(
-    (onChange) => {
-      window.addEventListener(EVENT, onChange);
-      window.addEventListener("storage", onChange);
-      return () => {
-        window.removeEventListener(EVENT, onChange);
-        window.removeEventListener("storage", onChange);
-      };
-    },
-    () => {
-      try {
-        return localStorage.getItem(key);
-      } catch {
-        return null;
-      }
-    },
-    () => null,
-  );
+  const [raw, save, read] = useLocalString(storageKey(projectId));
   const options = useMemo(() => parse(raw), [raw]);
-
-  const setOptions = useCallback(
-    (patch: Partial<ViewOptions>) => {
-      const next = { ...options, ...patch };
-      try {
-        localStorage.setItem(key, JSON.stringify(next));
-      } catch {}
-      window.dispatchEvent(new Event(EVENT));
-    },
-    [key, options],
-  );
-
+  // Merge onto the latest stored value so quick successive changes all stick.
+  const setOptions = useCallback((patch: Partial<ViewOptions>) => save(JSON.stringify({ ...parse(read()), ...patch })), [save, read]);
   return [options, setOptions] as const;
 }
 

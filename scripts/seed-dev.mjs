@@ -1,20 +1,10 @@
 // Seeds the LOCAL Supabase stack with demo people and work so you can click around.
 //   npm run db:reset && npm run seed:dev
-// Sign in on http://localhost:3000/login with the dev sign-in form (NEXT_PUBLIC_ENABLE_DEV_LOGIN=true).
-import { createClient } from "@supabase/supabase-js";
-import { readFileSync } from "node:fs";
+// Sign in on http://localhost:3000/login with email + password, then set up two-factor (any authenticator app).
+import { adminClient, signInWithMfa } from "./lib/helpers.mjs";
 
-const env = Object.fromEntries(
-  readFileSync(new URL("../.env.local", import.meta.url), "utf8")
-    .split("\n")
-    .filter((l) => l.includes("=") && !l.startsWith("#"))
-    .map((l) => [l.slice(0, l.indexOf("=")).trim(), l.slice(l.indexOf("=") + 1).trim()]),
-);
-const URL_ = env.NEXT_PUBLIC_SUPABASE_URL;
-if (!URL_.includes("127.0.0.1") && !URL_.includes("localhost")) throw new Error("Refusing to seed a non-local database");
-
-const PASSWORD = "seeds-dev-password";
-const admin = createClient(URL_, env.SUPABASE_SECRET_KEY, { auth: { persistSession: false } });
+const PASSWORD = "seeds-dev-2026";
+const admin = adminClient();
 
 const PEOPLE = [
   { email: "aya@seedsofleadership.ca", name: "Aya Admin" },
@@ -23,13 +13,6 @@ const PEOPLE = [
   { email: "priya@seedsofleadership.ca", name: "Priya Patel" },
   { email: "guest@partner.org", name: "Gabe Guest", guest: true },
 ];
-
-async function signIn(email) {
-  const c = createClient(URL_, env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, { auth: { persistSession: false } });
-  const { error } = await c.auth.signInWithPassword({ email, password: PASSWORD });
-  if (error) throw error;
-  return c;
-}
 
 const ids = {};
 for (const p of PEOPLE) {
@@ -49,7 +32,7 @@ for (const p of PEOPLE) {
 const [aya, jordan, sam, priya, guest] = PEOPLE.map((p) => ids[p.email]);
 await admin.from("profiles").update({ role: "admin" }).eq("id", aya);
 
-const c = await signIn("aya@seedsofleadership.ca");
+const { client: c } = await signInWithMfa("aya@seedsofleadership.ca", PASSWORD);
 
 const { data: team } = await c.from("teams").insert({ name: "Programs", description: "Youth leadership programs", color: "green" }).select().single();
 for (const u of [jordan, sam, priya]) await c.from("team_members").insert({ team_id: team.id, user_id: u });
@@ -133,5 +116,10 @@ await c.from("comments").insert({
 
 await c.from("goals").insert({ name: "Reach 500 youth leaders this year", owner_id: aya, time_period: "FY 2026", metric_unit: "number", metric_start: 0, metric_current: 210, metric_target: 500, created_by: aya });
 
-console.log("\nSeeded. Dev sign-in password for every account:", PASSWORD);
+// Seeding used a throwaway authenticator; remove it so you set up your own at first sign-in.
+const { data: factors } = await admin.auth.admin.mfa.listFactors({ userId: aya });
+for (const f of factors?.factors ?? []) await admin.auth.admin.mfa.deleteFactor({ userId: aya, id: f.id });
+
+console.log("\nSeeded. Password for every account:", PASSWORD);
+console.log("Each account sets up two-factor with any authenticator app on first sign-in.");
 for (const p of PEOPLE) console.log(`  ${p.email}${p.guest ? " (guest)" : ""}`);

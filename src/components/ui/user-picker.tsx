@@ -80,7 +80,7 @@ export function MultiUserPicker({
   );
 }
 
-export function PeopleList({
+function PeopleList({
   selected,
   onPick,
   onClear,

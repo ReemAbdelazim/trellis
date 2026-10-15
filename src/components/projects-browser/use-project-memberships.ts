@@ -7,12 +7,11 @@ import { qk } from "@/lib/queries/keys";
 
 /**
  * Every project membership the user can see (RLS limits it to visible projects),
- * grouped by project. Kept under the `project-members` key prefix so member edits
- * elsewhere invalidate it.
+ * grouped by project. Project member edits invalidate it (qk.allProjectMemberships).
  */
 export function useProjectMemberships() {
   const q = useQuery({
-    queryKey: [...qk.projectMembers("all")] as const,
+    queryKey: qk.allProjectMemberships,
     queryFn: async () => {
       const { data, error } = await createClient().from("project_members").select("project_id, user_id");
       if (error) throw error;
