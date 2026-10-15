@@ -63,9 +63,8 @@ ENABLE_EMAIL_AUTOCONFIRM=false
 ```
 
 In `docker-compose.yml`, add these to the **auth** service's `environment` to match the hosted
-settings (Google/Microsoft values are the same ones as in [SELF_HOSTING.md](SELF_HOSTING.md); the
-redirect URI becomes `https://api.yourorg.org/auth/v1/callback`, so add it in Google Cloud and Entra
-too):
+settings (Google values are the same ones as in [SELF_HOSTING.md](SELF_HOSTING.md); the
+redirect URI becomes `https://api.yourorg.org/auth/v1/callback`, so add it in Google Cloud too):
 
 ```yaml
 GOTRUE_PASSWORD_MIN_LENGTH: 10
@@ -76,11 +75,6 @@ GOTRUE_EXTERNAL_GOOGLE_ENABLED: "true"
 GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
 GOTRUE_EXTERNAL_GOOGLE_SECRET: ${GOOGLE_SECRET}
 GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI: https://api.yourorg.org/auth/v1/callback
-GOTRUE_EXTERNAL_AZURE_ENABLED: "true"
-GOTRUE_EXTERNAL_AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
-GOTRUE_EXTERNAL_AZURE_SECRET: ${AZURE_SECRET}
-GOTRUE_EXTERNAL_AZURE_URL: https://login.microsoftonline.com/common
-GOTRUE_EXTERNAL_AZURE_REDIRECT_URI: https://api.yourorg.org/auth/v1/callback
 GOTRUE_HOOK_SEND_EMAIL_ENABLED: "true"
 GOTRUE_HOOK_SEND_EMAIL_URI: http://functions:9000/auth-email
 GOTRUE_HOOK_SEND_EMAIL_SECRETS: ${SEND_EMAIL_HOOK_SECRET}

@@ -6,8 +6,7 @@ This sets up your own copy on free tiers:
 - **Gmail**: every email (Google Workspace account)
 - **Cloudflare R2**: attachments (optional)
 
-Allow about an hour, once. After that your team signs in with Google, Microsoft or email +
-password, plus an authenticator app.
+Allow about an hour, once. After that your team signs in with Google or email + password, plus an authenticator app.
 
 Throughout this guide:
 
@@ -66,19 +65,7 @@ npm install
    redirect URI `https://<ref>.supabase.co/auth/v1/callback`.
 4. Supabase → **Authentication → Providers → Google**: enable it, then paste the client ID and secret.
 
-## 4. Microsoft sign-in (optional)
-
-1. <https://entra.microsoft.com> → **App registrations → New registration**. Supported accounts:
-   **any organizational directory and personal Microsoft accounts**. Redirect URI (Web):
-   `https://<ref>.supabase.co/auth/v1/callback`.
-2. **Certificates & secrets → New client secret** (up to 24 months). Copy the **Value**, and set a
-   reminder to renew it before it expires.
-3. **Token configuration → Add optional claim → ID token**: tick `email` and `xms_edov`. This
-   lets Supabase confirm the email is verified.
-4. Supabase → **Authentication → Providers → Azure**: enable it, then paste the Application
-   (client) ID and secret. Set the Azure Tenant URL to `https://login.microsoftonline.com/common`.
-
-## 5. Email through Gmail
+## 4. Email through Gmail
 
 All email goes out from one Google Workspace account, e.g. `tasks@yourorg.org`, through the Gmail
 API, at about 2,000 emails a day. That covers task emails, daily updates, welcome emails, invitations,
@@ -101,13 +88,13 @@ password resets and email confirmations.
    ```bash
    npx supabase secrets set SEND_EMAIL_HOOK_SECRET="v1,whsec_..."
    ```
-4. **Notifications.** After your first sign-in (step 8): **Admin console → Email & automation →
+4. **Notifications.** After your first sign-in (step 7): **Admin console → Email & automation →
    Connect email delivery**, then **Send test email to me**.
 
 To change the sender later (e.g. from your own address to `tasks@yourorg.org`), run
 `npm run setup:gmail` again with the new `--from` and sign in as that account.
 
-## 6. Attachments on Cloudflare R2 (optional, recommended)
+## 5. Attachments on Cloudflare R2 (optional, recommended)
 
 Supabase's free plan stores 1 GB of files; R2's free plan stores **10 GB** with free downloads. If
 you skip this step, attachments use Supabase Storage.
@@ -124,7 +111,7 @@ you skip this step, attachments use Supabase Storage.
    npx supabase secrets set R2_ACCOUNT_ID=... R2_BUCKET=seeds-attachments R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=...
    ```
 
-## 7. Publish with GitHub Pages
+## 6. Publish with GitHub Pages
 
 1. In your fork: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 2. **Settings → Secrets and variables → Actions → Variables**: add
@@ -136,15 +123,15 @@ you skip this step, attachments use Supabase Storage.
 For a custom domain (e.g. `tasks.yourorg.org`): add it under **Settings → Pages**, set `BASE_PATH` to
 `/`, re-run the workflow, and update the Supabase URL configuration (step 2.6) to the new address.
 
-## 8. First sign-in
+## 7. First sign-in
 
 Open `<site>` and **sign in first** with your organization account. You'll set up your authenticator
-app, and you're the admin. Then finish step 5.4.
+app, and you're the admin. Then finish step 4.4.
 
 People who lose their phone can be reset by an admin: **Admin console → People → ⋯ → Reset
 two-factor**.
 
-## 9. Keep it updated (optional automation)
+## 8. Keep it updated (optional automation)
 
 To deploy database and function changes automatically when `supabase/` changes on `main`, add
 these repository **secrets**:

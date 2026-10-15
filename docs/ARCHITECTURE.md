@@ -2,7 +2,7 @@
 
 An original work-management app (Asana-style) for Seeds of Leadership.
 Stack: Next.js 16 (App Router, **static export** for GitHub Pages) · React 19 · Tailwind v4 ·
-Supabase (Postgres + RLS, Auth: Google/Microsoft/password + TOTP two-factor, Realtime, Storage,
+Supabase (Postgres + RLS, Auth: Google/password + TOTP two-factor, Realtime, Storage,
 Edge Functions, pg_cron) · Gmail API (email) · Cloudflare R2 (attachments, optional) · TanStack Query v5 · Radix UI (`radix-ui` package) · lucide-react · date-fns v4 · @dnd-kit · sonner.
 
 ## Runtime shape
@@ -16,7 +16,7 @@ Edge Functions, pg_cron) · Gmail API (email) · Cloudflare R2 (attachments, opt
 - `src/app/(app)/layout.tsx` wraps signed-in pages in `AuthGate` (`src/lib/queries/me.tsx`), which
   resolves the session, two-factor level and profile; redirects to `/login`, `/mfa` or `/no-access`;
   and provides `useMe()`.
-- Sign-in (`src/lib/auth.ts`): Google/Microsoft via PKCE (`signInWithProvider`), or email + password
+- Sign-in (`src/lib/auth.ts`): Google via PKCE (`signInWithGoogle`), or email + password
   (`signInWithPassword`, `signUpWithPassword`, `requestPasswordReset`). Account emails use the
   implicit flow so their links work on any device. Every link lands on `/auth/callback`, which
   handles `?code=`, `?token_hash=` and `#access_token`. `/mfa` sets up or verifies the authenticator

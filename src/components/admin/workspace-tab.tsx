@@ -90,7 +90,7 @@ function WorkspaceForm({ org }: { org: OrgSettings }) {
 
       <SettingsCard
         title="Allowed email domains"
-        description="Anyone who signs in with Google or Microsoft using one of these domains joins automatically as a member. Everyone else needs an invitation."
+        description="Anyone who signs in with one of these domains joins automatically as a member. Everyone else needs an invitation."
       >
         <div className="py-3">
           <div className="flex flex-wrap gap-2">

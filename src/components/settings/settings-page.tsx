@@ -73,7 +73,7 @@ function ProfileCard({ profile }: { profile: Profile }) {
         <div className="flex shrink-0 flex-col items-center gap-2 sm:w-36">
           <Avatar profile={profile} size="xl" />
           <p className="text-center text-[11px] leading-snug text-faint">
-            Your photo comes from your Google or Microsoft account. Change it there and it updates the next time you
+            Your photo comes from your Google account. Change it there and it updates the next time you
             sign in.
           </p>
         </div>

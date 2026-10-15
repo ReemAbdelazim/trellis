@@ -6,7 +6,7 @@
 // OAuth client. Opens Google's consent screen: sign in as the sender and allow
 // "Send email on your behalf". The client, refresh token and sender are then
 // stored as Supabase function secrets on the linked project (never printed).
-// See docs/SELF_HOSTING.md, step 5.
+// See docs/SELF_HOSTING.md, step 4.
 import { createServer } from "node:http";
 import { exec, spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";

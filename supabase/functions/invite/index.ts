@@ -60,7 +60,7 @@ serve(async (req) => {
         title: projectName ? `Join ${projectName} on Trellis` : "Join your team on Trellis",
         paragraphs: [
           `${inviter} (${caller.email}) invited you to Trellis${projectName ? `, to work on ${projectName}` : ""}.`,
-          `Sign in with Google, Microsoft or a password, using ${email}.`,
+          `Sign in with Google or a password, using ${email}.`,
         ],
         cta: { label: "Accept invite", url: appUrl(`/login/?next=${encodeURIComponent(projectId ? `/project/?id=${projectId}` : "/home/")}`) },
         footerReason: "You're getting this because someone invited you.",

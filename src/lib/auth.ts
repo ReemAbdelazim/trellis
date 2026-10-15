@@ -5,8 +5,6 @@ import { createClient } from "@/lib/supabase/client";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/lib/env";
 import { absoluteUrl, routes } from "@/lib/routes";
 
-export type OAuthProvider = "google" | "azure";
-
 export const PASSWORD_RULES = "At least 10 characters, with letters and numbers.";
 
 /** Only same-site, absolute-path redirects are honoured (no open redirects). */
@@ -27,14 +25,10 @@ function emailFlowClient() {
   });
 }
 
-export async function signInWithProvider(provider: OAuthProvider, next: string) {
+export async function signInWithGoogle(next: string) {
   return createClient().auth.signInWithOAuth({
-    provider,
-    options: {
-      redirectTo: callbackUrl(next),
-      scopes: provider === "azure" ? "openid email profile offline_access" : undefined,
-      queryParams: { prompt: "select_account" },
-    },
+    provider: "google",
+    options: { redirectTo: callbackUrl(next), queryParams: { prompt: "select_account" } },
   });
 }
 

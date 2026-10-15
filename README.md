@@ -3,7 +3,7 @@
 Open-source work management for small organizations: projects, tasks, boards, timelines, goals and
 more. Built for [Seeds of Leadership](https://seedsofleadership.ca), free for anyone to run.
 
-- **Sign-in**: Google, Microsoft, or email + password (with reset-by-email). Anyone with your
+- **Sign-in**: Google, or email + password (with reset-by-email). Anyone with your
   organization's email domain can join; outside partners join as guests by invitation.
 - **Two-factor sign-in is required for everyone**: an authenticator app set up by scanning a QR code.
 - **Runs on free tiers**: the site is static files on **GitHub Pages**. **Supabase** provides the
@@ -52,7 +52,7 @@ as one conversation instead of a new email each time. Items already read in the 
 
 ```
 Browser: static Next.js app on GitHub Pages
-  │  signs in (Google / Microsoft / password) + authenticator code  ─▶ Supabase Auth
+  │  signs in (Google / password) + authenticator code  ───────────▶ Supabase Auth
   │  reads & writes data directly ─────────────────────────────────▶ Supabase Postgres
   │                                     • row-level security checks every read and write
   │                                     • two-factor required on every table
@@ -81,7 +81,7 @@ About an hour, once, all on free tiers. Follow **[docs/SELF_HOSTING.md](docs/SEL
 
 1. Fork this repository.
 2. Create a free Supabase project; push the database and functions.
-3. Register sign-in with Google and/or Microsoft.
+3. Register Google sign-in.
 4. Authorize a Gmail sender for email (`npm run setup:gmail`).
 5. Optional: create a Cloudflare R2 bucket for attachments.
 6. Set two repository variables and turn on GitHub Pages.

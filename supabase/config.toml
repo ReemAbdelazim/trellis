@@ -414,19 +414,13 @@ enabled = true
 # and column/key alignment. Set to "null" to emit raw, unformatted SQL.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
 
-# Production sign-in uses Google and Microsoft (Azure). Locally these stay off
-# unless you export the matching env vars before `supabase start`.
+# Production sign-in uses Google. Locally it stays off unless you export the
+# matching env vars before `supabase start`.
 [auth.external.google]
 enabled = false
 client_id = "env(SUPABASE_AUTH_GOOGLE_CLIENT_ID)"
 secret = "env(SUPABASE_AUTH_GOOGLE_SECRET)"
 skip_nonce_check = true
-
-[auth.external.azure]
-enabled = false
-client_id = "env(SUPABASE_AUTH_AZURE_CLIENT_ID)"
-secret = "env(SUPABASE_AUTH_AZURE_SECRET)"
-url = "https://login.microsoftonline.com/common/v2.0"
 
 # Called hourly by pg_cron with a shared secret instead of a user JWT.
 [functions.notifications]
@@ -453,10 +447,7 @@ client_id = "511939980313-cani96m1pq9rfa0a2rtgpg5e7rprgkbp.apps.googleuserconten
 secret = "env(SUPABASE_AUTH_GOOGLE_SECRET)"
 skip_nonce_check = true
 
-# Password-reset and confirmation emails go through the auth-email function (Gmail).
-# The signing secret also comes from the environment when pushing:
-#   SEND_EMAIL_HOOK_SECRET="v1,whsec_..."
-[remotes.production.auth.hook.send_email]
-enabled = true
-uri = "https://rawiexmioxlqffdmbwka.supabase.co/functions/v1/auth-email"
-secrets = "env(SEND_EMAIL_HOOK_SECRET)"
+# Password-reset and confirmation emails use the "Send Email" hook (auth-email
+# function), set up once as in docs/SELF_HOSTING.md. It's left out of this file
+# on purpose: `config push` keeps undeclared settings, and declaring it would
+# need its secret for every deploy.

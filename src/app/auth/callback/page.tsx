@@ -10,7 +10,7 @@ import { PageLoader } from "@/components/ui/misc";
 
 /**
  * Where every sign-in link lands:
- *  - `?code=`        Google / Microsoft (PKCE)
+ *  - `?code=`        Google (PKCE)
  *  - `?token_hash=`  confirm-email and reset-password links sent by our auth-email hook
  *  - `#access_token` the same links from Supabase's default mailer (local development)
  */
