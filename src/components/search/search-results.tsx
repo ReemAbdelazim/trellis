@@ -15,6 +15,9 @@ import { EmptyState, PageLoader, ProgressBar, Spinner, StatusPill } from "@/comp
 import { ProjectChip } from "@/components/my-tasks/task-meta";
 import { cn, colorHex, DUE_TONE_CLASS, dueTone, formatDue } from "@/lib/utils";
 import { routes } from "@/lib/routes";
+import { useTags } from "@/lib/queries/tags";
+import { TagChips } from "@/components/tags/tag-chip";
+import { TagHeader } from "@/components/tags/tag-header";
 
 type Tab = "tasks" | "projects" | "people";
 
@@ -29,6 +32,7 @@ export function SearchResults() {
   const tab = (["tasks", "projects", "people"].includes(params.get("tab") ?? "") ? params.get("tab") : "tasks") as Tab;
   const assigneeId = asUuid(params.get("assignee"));
   const projectId = asUuid(params.get("project"));
+  const tagId = asUuid(params.get("tag"));
   const includeCompleted = params.get("completed") === "1";
 
   // Local text box that follows the URL until the user types.
@@ -57,7 +61,9 @@ export function SearchResults() {
   const { data: projects = [] } = useProjects();
   const { data: people, isLoading: peopleLoading } = useActiveProfiles();
   const profiles = useProfileMap();
-  const tasks = useTaskSearch({ q, includeCompleted, assigneeId, projectId });
+  const tasks = useTaskSearch({ q, includeCompleted, assigneeId, projectId, tagId });
+  const { data: tags = [] } = useTags();
+  const tag = tags.find((t) => t.id === tagId);
 
   const lower = q.toLowerCase();
   const projectHits = useMemo(
@@ -157,6 +163,21 @@ export function SearchResults() {
                 </option>
               ))}
           </Select>
+          {tags.length > 0 && (
+            <Select
+              value={tagId ?? ""}
+              onChange={(e) => setParams({ tag: e.target.value || null })}
+              className="h-8 w-auto max-w-44 text-[13px]"
+              aria-label="Tag"
+            >
+              <option value="">Any tag</option>
+              {tags.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </Select>
+          )}
           <label className="flex cursor-pointer items-center gap-2 text-[13px] text-muted select-none">
             <input
               type="checkbox"
@@ -166,8 +187,8 @@ export function SearchResults() {
             />
             Include completed
           </label>
-          {(assigneeId || projectId) && (
-            <Button variant="ghost" size="sm" onClick={() => setParams({ assignee: null, project: null })}>
+          {(assigneeId || projectId || tagId) && (
+            <Button variant="ghost" size="sm" onClick={() => setParams({ assignee: null, project: null, tag: null })}>
               <X size={13} /> Clear filters
             </Button>
           )}
@@ -177,14 +198,17 @@ export function SearchResults() {
 
       <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
         {tab === "tasks" ? (
-          <TaskResults
-            loading={tasks.isLoading}
-            error={tasks.error}
-            hits={tasks.data}
-            active={!!(q || assigneeId || projectId)}
-            heading={assignee ? `Tasks assigned to ${assignee.full_name || assignee.email}` : null}
-            profiles={profiles}
-          />
+          <>
+            {tag && <TagHeader tag={tag} onDeleted={() => setParams({ tag: null })} />}
+            <TaskResults
+              loading={tasks.isLoading}
+              error={tasks.error}
+              hits={tasks.data}
+              active={!!(q || assigneeId || projectId || tagId)}
+              heading={assignee ? `Tasks assigned to ${assignee.full_name || assignee.email}` : null}
+              profiles={profiles}
+            />
+          </>
         ) : tab === "projects" ? (
           <ProjectResults hits={projectHits} />
         ) : peopleLoading ? (
@@ -262,6 +286,7 @@ function TaskResults({
               <span className={cn("min-w-0 flex-1 truncate", t.completed && "text-muted line-through")}>
                 {t.name || "Untitled task"}
               </span>
+              <TagChips ids={t.task_tags.map((x) => x.tag_id)} max={2} className="hidden md:flex" />
               <ProjectChip project={t.project} className="hidden max-w-48 sm:inline-flex" />
               {t.due_date && (
                 <span className={cn("shrink-0 text-xs", DUE_TONE_CLASS[dueTone(t.due_date, t.completed)])}>

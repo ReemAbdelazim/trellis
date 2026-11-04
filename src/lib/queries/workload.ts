@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { qk } from "./keys";
-import { TASK_COLUMNS, type TaskItem } from "./tasks";
+import { asItem, TASK_COLUMNS, type TaskItem } from "./tasks";
 import type { Task } from "@/types/models";
 
 const supabase = () => createClient();
@@ -27,7 +27,7 @@ export function useTasksInRange(start: string, end: string, enabled = true) {
         .order("due_date")
         .limit(5000);
       if (error) throw error;
-      return (data as Task[]).map((t) => ({ ...t, subtask_count: 0, comment_count: 0 }));
+      return (data as Task[]).map(asItem);
     },
   });
 }

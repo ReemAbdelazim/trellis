@@ -68,11 +68,16 @@ export function colorHex(color?: string | null) {
   return COLOR_HEX[color ?? ""] ?? COLOR_HEX.teal;
 }
 
-/** Stable colour for a user id / string. */
-export function hashColor(seed: string) {
+/** Stable palette colour for a string (a user id, a tag name…). */
+export function paletteColorFor(seed: string): PaletteColor {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
-  return COLOR_HEX[PALETTE[Math.abs(h) % PALETTE.length]];
+  return PALETTE[Math.abs(h) % PALETTE.length];
+}
+
+/** Stable colour (hex) for a user id / string. */
+export function hashColor(seed: string) {
+  return COLOR_HEX[paletteColorFor(seed)];
 }
 
 export function toDate(value: string | Date | null | undefined): Date | null {

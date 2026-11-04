@@ -16,10 +16,11 @@ more. Built for [Seeds of Leadership](https://seedsofleadership.ca), free for an
 
 - **Projects** with List, Board, Timeline (Gantt with dependencies), Calendar, Dashboard, Overview
   and Workflow views; sections, drag and drop, templates and duplication
-- **Tasks** with subtasks (which can be grouped into sections), assignees, start/due dates, milestones, dependencies, attachments,
+- **Tasks** with subtasks (which can be grouped into sections), tags, assignees, start/due dates, milestones, dependencies, attachments,
   comments with @mentions, followers, likes and a full activity history
 - **Custom fields** (text, number, date, single/multi select, people, checkbox) and **rules**
   ("when a task moves to Done, mark it complete")
+- **Tags** shared across the workspace: filter a project by tag, or open a tag to see every task with it
 - **My tasks**, **Home**, **Inbox** (updates live), global search (Ctrl/Cmd + K)
 - **Email notifications** (see [Emails](#emails)): one thread per task for comments, assignments
   and @mentions, a daily update of tasks due soon, plus welcome and accepted-invite emails. Each

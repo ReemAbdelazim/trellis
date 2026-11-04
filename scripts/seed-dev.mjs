@@ -114,6 +114,21 @@ await c.from("comments").insert({
   mentions: [jordan],
 });
 
+const { data: tags } = await c
+  .from("tags")
+  .insert([
+    { name: "Urgent", color: "red" },
+    { name: "Funding", color: "green" },
+    { name: "Volunteers", color: "blue" },
+  ])
+  .select("id, name");
+const tagId = (name) => tags.find((t) => t.name === name).id;
+await c.from("task_tags").insert([
+  { task_id: venue.id, tag_id: tagId("Urgent") },
+  { task_id: venue.id, tag_id: tagId("Funding") },
+  { task_id: agenda.id, tag_id: tagId("Volunteers") },
+]);
+
 await c.from("goals").insert({ name: "Reach 500 youth leaders this year", owner_id: aya, time_period: "FY 2026", metric_unit: "number", metric_start: 0, metric_current: 210, metric_target: 500, created_by: aya });
 
 // Seeding used a throwaway authenticator; remove it so you set up your own at first sign-in.

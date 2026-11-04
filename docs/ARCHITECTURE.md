@@ -92,6 +92,10 @@ Add new hooks next to the existing ones (new file per feature is fine). Patterns
   `useProjectStats` (RPC).
 - Sections (`src/lib/queries/sections.ts`): `useSections`, `useCreateSection`/`useUpdateSection`/
   `useDeleteSection`, all taking an owner: `{ projectId }` or `{ taskId }`.
+- Tags (`src/lib/queries/tags.ts`): `useTags`, `useTagMap`, `useCreateTag`/`useUpdateTag`/`useDeleteTag`,
+  `useSetTaskTag`. Every `TaskItem` carries `tag_ids` (embedded in the task query), so lists, filters
+  and the pane need no extra requests. Tags are workspace-wide; guests see only tags on tasks they can
+  see (`can_see_tag`). Tagging logs `tag_added`/`tag_removed` and bumps the task so live lists refresh.
 - Tasks: `useProjectTasks(projectId)` (→ `TaskItem[]` with `subtask_count`, `comment_count`),
   `useMyTasks(userId)`, `useSubtasks`, `useTask`, `useCanEditTask`, `useUpdateTask`, `useCreateTask`, `useDeleteTask`.
 - Custom fields: `useCustomFields`, `useProjectFieldValues` (→ `map: Map<taskId, Map<fieldId, value>>`),

@@ -9,6 +9,7 @@ import type { TaskItem } from "@/lib/queries/tasks";
 import type { Json } from "@/types/database";
 import type { CustomField, FieldOption } from "@/types/models";
 import { TaskCounts } from "../task-list/list-row";
+import { TagChips } from "@/components/tags/tag-chip";
 import { guardDragListeners, taskDndId } from "@/components/sections/use-section-dnd";
 
 /** Selected options of the project's single-select fields, for the pills on a card. */
@@ -50,11 +51,12 @@ function CardBody({
           {task.name || "Untitled task"}
         </p>
       </div>
-      {pills.length > 0 && (
+      {(pills.length > 0 || task.tag_ids.length > 0) && (
         <div className="mt-2 flex flex-wrap gap-1 pl-6">
           {pills.map((p) => (
             <OptionPill key={p.fieldId} option={p} />
           ))}
+          <TagChips ids={task.tag_ids} max={3} className="flex-wrap" />
         </div>
       )}
       <div className="mt-2 flex min-h-6 items-center gap-1 pl-6">

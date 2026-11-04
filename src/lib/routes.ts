@@ -24,6 +24,8 @@ export const routes = {
   portfolio: (id: string) => `/portfolio?id=${id}`,
   search: (q: string) => `/search?q=${encodeURIComponent(q)}`,
   settingsTab: (tab: SettingsTab) => `/settings?tab=${tab}`,
+  /** Every task with a tag (the search page, filtered). */
+  tag: (id: string) => `/search?tag=${id}`,
 
   /** Opens a task in the pane on its project's list, or on My tasks for personal tasks. */
   task: (taskId: string, projectId?: string | null) =>

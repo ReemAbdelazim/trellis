@@ -9,8 +9,8 @@ import type { Task, TaskInsert, TaskUpdate } from "@/types/models";
 
 const supabase = () => createClient();
 
-/** A task row plus the counts list views show. */
-export type TaskItem = Task & { subtask_count: number; comment_count: number };
+/** A task row plus the counts and tags list views show. */
+export type TaskItem = Task & { subtask_count: number; comment_count: number; tag_ids: string[] };
 
 /** Every task column the app uses (skips the large full-text `search` column). */
 // (One literal string so supabase-js can infer the row type.)
@@ -18,21 +18,27 @@ export const TASK_COLUMNS =
   "id, project_id, section_id, parent_id, name, description, assignee_id, start_date, due_date, completed, completed_at, completed_by, is_milestone, estimate_hours, position, my_tasks_bucket, my_tasks_position, created_by, created_at, updated_at";
 
 // Self-referencing embed: the column hint (`parent_id`) selects the child direction.
-const TASK_SELECT = `${TASK_COLUMNS}, subtasks:tasks!parent_id(count), comments(count)` as const;
+const TASK_SELECT = `${TASK_COLUMNS}, subtasks:tasks!parent_id(count), comments(count), task_tags(tag_id)` as const;
 
-type RawTaskRow = Task & { subtasks?: { count: number }[]; comments?: { count: number }[] };
+type RawTaskRow = Task & {
+  subtasks?: { count: number }[];
+  comments?: { count: number }[];
+  task_tags?: { tag_id: string }[];
+};
 
 function toTaskItem(row: RawTaskRow): TaskItem {
-  const { subtasks, comments, ...task } = row;
+  const { subtasks, comments, task_tags, ...task } = row;
   return {
     ...(task as Task),
     subtask_count: subtasks?.[0]?.count ?? 0,
     comment_count: comments?.[0]?.count ?? 0,
+    tag_ids: (task_tags ?? []).map((t) => t.tag_id),
   };
 }
 
-function asItem(task: Task | TaskItem): TaskItem {
-  return { subtask_count: 0, comment_count: 0, ...task };
+/** A plain task row as a list item (no counts or tags loaded). */
+export function asItem(task: Task | TaskItem): TaskItem {
+  return { subtask_count: 0, comment_count: 0, tag_ids: [], ...task };
 }
 
 export function sortByPosition<T extends { position: number }>(list: T[]) {
@@ -99,10 +105,10 @@ export function useTask(id: string | null | undefined) {
   return useQuery({
     queryKey: qk.task(id ?? ""),
     enabled: !!id,
-    queryFn: async (): Promise<Task | null> => {
-      const { data, error } = await supabase().from("tasks").select(TASK_COLUMNS).eq("id", id!).maybeSingle();
+    queryFn: async (): Promise<TaskItem | null> => {
+      const { data, error } = await supabase().from("tasks").select(TASK_SELECT).eq("id", id!).maybeSingle();
       if (error) throw error;
-      return data;
+      return data ? toTaskItem(data as unknown as RawTaskRow) : null;
     },
   });
 }
@@ -126,11 +132,11 @@ export function useCanEditTask(id: string | null | undefined) {
 // ---------------------------------------------------------------------------
 
 /** Apply a patch to a task wherever it is cached. */
-export function patchTaskInCaches(qc: QueryClient, id: string, patch: Partial<Task>) {
+export function patchTaskInCaches(qc: QueryClient, id: string, patch: Partial<TaskItem>) {
   qc.setQueriesData<TaskItem[]>({ queryKey: qk.tasks }, (list) =>
     Array.isArray(list) ? list.map((t) => (t.id === id ? { ...t, ...patch } : t)) : list,
   );
-  qc.setQueryData<Task | null>(qk.task(id), (t) => (t ? { ...t, ...patch } : t));
+  qc.setQueryData<TaskItem | null>(qk.task(id), (t) => (t ? { ...t, ...patch } : t));
 }
 
 function removeTaskFromCaches(qc: QueryClient, id: string) {
@@ -147,14 +153,14 @@ function adjustSubtaskCount(qc: QueryClient, parentId: string, delta: number) {
   );
 }
 
-function snapshotTasks(qc: QueryClient) {
+export function snapshotTasks(qc: QueryClient) {
   return {
     lists: qc.getQueriesData<TaskItem[]>({ queryKey: qk.tasks }),
     singles: qc.getQueriesData<Task | null>({ queryKey: ["task"] }),
   };
 }
 
-function restoreTasks(qc: QueryClient, snap: ReturnType<typeof snapshotTasks>) {
+export function restoreTasks(qc: QueryClient, snap: ReturnType<typeof snapshotTasks>) {
   snap.lists.forEach(([key, data]) => qc.setQueryData(key, data));
   snap.singles.forEach(([key, data]) => qc.setQueryData(key, data));
 }

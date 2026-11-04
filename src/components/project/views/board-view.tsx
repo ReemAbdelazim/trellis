@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import type { Section } from "@/types/models";
 import { TaskViewToolbar } from "../task-list/toolbar";
 import { useProjectTasksView } from "../task-list/use-project-tasks-view";
+import { NO_FILTERS } from "../task-list/view-options";
 import { sectionDndId, useSectionDnd } from "@/components/sections/use-section-dnd";
 import { DeleteSectionDialog, useSectionActions } from "@/components/sections/section-controls";
 import { useAddTask } from "../task-list/task-inputs";
@@ -45,6 +46,7 @@ export function ProjectBoardView({ projectId }: { projectId: string }) {
       search={view.search}
       onSearchChange={view.setSearch}
       assigneeIds={view.assigneeIds}
+      tagIds={view.tagIds}
       onAddTask={
         canEdit && ordered.length
           ? () => setCompose((c) => ({ sectionId: ordered[0].id, n: (c?.n ?? 0) + 1 }))
@@ -87,7 +89,7 @@ export function ProjectBoardView({ projectId }: { projectId: string }) {
             className="font-medium text-accent hover:underline"
             onClick={() => {
               view.setSearch("");
-              view.setOptions({ status: "all", assignee: "any", due: "any" });
+              view.setOptions({ status: "all", ...NO_FILTERS });
             }}
           >
             Show all tasks

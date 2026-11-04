@@ -10,6 +10,7 @@ import type { TaskItem } from "@/lib/queries/tasks";
 import type { Json } from "@/types/database";
 import type { CustomField } from "@/types/models";
 import { TaskNameInput } from "./task-inputs";
+import { TagChips } from "@/components/tags/tag-chip";
 import { guardDragListeners, taskDndId } from "@/components/sections/use-section-dnd";
 
 /** Grid template shared by the header, rows and add rows (set as --cols on the table). */
@@ -116,6 +117,7 @@ export function ListRow({
             {task.name || "Untitled task"}
           </span>
         )}
+        <TagChips ids={task.tag_ids} max={2} className="hidden max-w-[45%] sm:flex" />
         <TaskCounts task={task} />
         <button
           type="button"

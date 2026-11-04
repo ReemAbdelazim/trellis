@@ -49,6 +49,7 @@ export function useProjectTasksView(projectId: string) {
     () => [...new Set(tasks.map((t) => t.assignee_id).filter((id): id is string => !!id))],
     [tasks],
   );
+  const tagIds = useMemo(() => [...new Set(tasks.flatMap((t) => t.tag_ids))], [tasks]);
 
   const visibleCount = Object.values(groups).reduce((n, ids) => n + ids.length, 0);
 
@@ -62,6 +63,7 @@ export function useProjectTasksView(projectId: string) {
     allBySection,
     groups,
     assigneeIds,
+    tagIds,
     options,
     setOptions,
     search,

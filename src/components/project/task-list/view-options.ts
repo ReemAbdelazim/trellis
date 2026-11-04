@@ -15,21 +15,22 @@ export type StatusFilter = "incomplete" | "completed" | "all";
 /** "any" | "me" | "unassigned" | a user id */
 export type AssigneeFilter = string;
 export type DueFilter = "any" | "week" | "overdue";
+/** "any" | a tag id */
+export type TagFilter = string;
 export type SortKey = "manual" | "due" | "assignee" | "name" | "created";
 
 export interface ViewOptions {
   status: StatusFilter;
   assignee: AssigneeFilter;
   due: DueFilter;
+  tag: TagFilter;
   sort: SortKey;
 }
 
-export const DEFAULT_VIEW_OPTIONS: ViewOptions = {
-  status: "incomplete",
-  assignee: "any",
-  due: "any",
-  sort: "manual",
-};
+/** Every filter except completion turned off. */
+export const NO_FILTERS = { assignee: "any", due: "any", tag: "any" } as const satisfies Partial<ViewOptions>;
+
+export const DEFAULT_VIEW_OPTIONS: ViewOptions = { status: "incomplete", ...NO_FILTERS, sort: "manual" };
 
 export const SORT_LABEL: Record<SortKey, string> = {
   manual: "Manual",
@@ -49,6 +50,7 @@ function parse(raw: string | null): ViewOptions {
       status: v.status === "completed" || v.status === "all" ? v.status : "incomplete",
       assignee: typeof v.assignee === "string" && v.assignee ? v.assignee : "any",
       due: v.due === "week" || v.due === "overdue" ? v.due : "any",
+      tag: typeof v.tag === "string" && v.tag ? v.tag : "any",
       sort: v.sort && v.sort in SORT_LABEL ? v.sort : "manual",
     };
   } catch {
@@ -66,7 +68,9 @@ export function useViewOptions(projectId: string) {
 }
 
 export function activeFilterCount(o: ViewOptions) {
-  return (o.status !== "incomplete" ? 1 : 0) + (o.assignee !== "any" ? 1 : 0) + (o.due !== "any" ? 1 : 0);
+  return (
+    (o.status !== "incomplete" ? 1 : 0) + (o.assignee !== "any" ? 1 : 0) + (o.due !== "any" ? 1 : 0) + (o.tag !== "any" ? 1 : 0)
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -90,6 +94,7 @@ function matches(t: TaskItem, o: ViewOptions, meId: string, needle: string) {
       if (d < startOfWeek(now) || d > endOfWeek(now)) return false;
     }
   }
+  if (o.tag !== "any" && !t.tag_ids.includes(o.tag)) return false;
   if (needle && !t.name.toLowerCase().includes(needle)) return false;
   return true;
 }

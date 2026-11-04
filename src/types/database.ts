@@ -513,17 +513,23 @@ isOneToOne: false
                   ]
                 },"tags": {
                   Row: {
-                    "color": string,"created_at": string,"id": string,"name": string
+                    "color": string,"created_at": string,"created_by": string | null,"id": string,"name": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "color"?: string,"created_at"?: string,"id"?: string,"name": string
+                    "color"?: string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"name": string
                   }
                   Update: {
-                    "color"?: string,"created_at"?: string,"id"?: string,"name"?: string
+                    "color"?: string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"name"?: string
                   }
                   Relationships: [
-                    
+                    {
+      foreignKeyName: "tags_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"task_activity": {
                   Row: {
@@ -657,14 +663,14 @@ isOneToOne: false
                   ]
                 },"task_tags": {
                   Row: {
-                    "tag_id": string,"task_id": string
+                    "created_at": string,"tag_id": string,"task_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "tag_id": string,"task_id": string
+                    "created_at"?: string,"tag_id": string,"task_id": string
                   }
                   Update: {
-                    "tag_id"?: string,"task_id"?: string
+                    "created_at"?: string,"tag_id"?: string,"task_id"?: string
                   }
                   Relationships: [
                     {

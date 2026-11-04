@@ -39,6 +39,7 @@ import { TaskSubtasks } from "./task-subtasks";
 import { TaskAttachments } from "./task-attachments";
 import { TaskDependencies } from "./task-dependencies";
 import { TaskFeed } from "./task-feed";
+import { TaskTags } from "@/components/tags/task-tags";
 import type { Task } from "@/types/models";
 import { absoluteUrl, routes } from "@/lib/routes";
 
@@ -183,6 +184,9 @@ function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () => void }
               {!task.due_date && canEdit && <EmptyDue task={task} />}
               {!task.due_date && !canEdit && <span className="text-faint">No due date</span>}
             </dd>
+            <FieldRow label="Tags">
+              <TaskTags task={task} canEdit={canEdit} />
+            </FieldRow>
             {!task.parent_id && (
               <>
                 <dt className="text-muted">Project</dt>

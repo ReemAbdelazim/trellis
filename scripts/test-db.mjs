@@ -266,6 +266,40 @@ check("deleting a subtask section keeps its subtasks, outside any section", afte
 const { data: t4Sec } = await cm1.from("sections").insert({ task_id: t4, name: "Checklist" }).select().single();
 await cm1.from("tasks").insert({ parent_id: t4, section_id: t4Sec.id, name: `Sectioned subtask ${run}`, created_by: await uid(cm1) });
 
+console.log("\nTags");
+const { data: tag, error: tagErr } = await cm1.from("tags").insert({ name: `Urgent ${run}`, color: "red" }).select().single();
+check("member can create a tag", !tagErr && tag?.created_by === m1.user.id, tagErr?.message);
+const { error: dupTag } = await cm2.from("tags").insert({ name: `  urgent ${run} ` });
+check("tag names are unique, ignoring case and spaces", !!dupTag);
+const { error: guestTag } = await cg.from("tags").insert({ name: `Guest tag ${run}`, created_by: g.user.id });
+check("guests can't create tags", !!guestTag);
+const { error: tagT1 } = await cm1.from("task_tags").insert({ task_id: t1, tag_id: tag.id });
+check("editor can tag a task", !tagT1, tagT1?.message);
+const { error: outsiderTagging } = await cm2.from("task_tags").insert({ task_id: t1, tag_id: tag.id });
+check("someone who can't edit the task can't tag it", !!outsiderTagging);
+const { data: outsiderSees } = await cm2.from("task_tags").select("tag_id").eq("task_id", t1);
+check("…or see its tags", outsiderSees?.length === 0);
+const { data: hidden } = await cm1.from("tags").insert({ name: `Internal ${run}` }).select().single();
+const { data: guestTags } = await cg.from("tags").select("id").in("id", [tag.id, hidden.id]);
+check("guests see only tags on tasks they can see", guestTags?.length === 1 && guestTags[0].id === tag.id, guestTags);
+const { data: tagAct } = await cm1.from("task_activity").select("kind, data").eq("task_id", t1).eq("kind", "tag_added");
+check("tagging is recorded in the task's history", tagAct?.some((a) => a.data.tag === `Urgent ${run}`), tagAct);
+const { data: renamed } = await cm2.from("tags").update({ name: `Urgent! ${run}`, color: "not-a-colour", created_by: m2.user.id }).eq("id", tag.id).select().single();
+check("members can rename and recolour a tag", renamed?.name === `Urgent! ${run}`);
+check("…the colour stays in the palette and the creator can't change", renamed?.color === "teal" && renamed?.created_by === m1.user.id, renamed);
+const { data: notMine } = await cm2.from("tags").delete().eq("id", hidden.id).select();
+check("only the creator or an admin can delete a tag", notMine?.length === 0);
+await cm1.from("task_tags").delete().eq("task_id", t1).eq("tag_id", tag.id);
+const { data: untagAct } = await cm1.from("task_activity").select("kind").eq("task_id", t1).eq("kind", "tag_removed");
+check("removing a tag is recorded too", untagAct?.length === 1);
+await cm1.from("task_tags").insert({ task_id: t1, tag_id: tag.id });
+const { error: adminDel } = await ca.from("tags").delete().eq("id", tag.id);
+const { data: leftover } = await admin.from("task_tags").select("task_id").eq("tag_id", tag.id);
+check("admin can delete a tag, which leaves every task", !adminDel && leftover?.length === 0, adminDel?.message);
+// Kept for the duplicate test below.
+const { data: keepTag } = await cm1.from("tags").insert({ name: `Funding ${run}` }).select().single();
+await cm1.from("task_tags").insert({ task_id: t4, tag_id: keepTag.id });
+
 console.log("\nTemplates");
 const { data: copyId, error: dupErr } = await cm1.rpc("duplicate_project", { p_project: pub.id, p_name: `Copy ${run}`, p_include_tasks: true, p_as_template: false });
 check("duplicate project", !dupErr, dupErr?.message);
@@ -275,6 +309,8 @@ const { data: copyRules } = await cm1.from("rules").select("trigger_config").eq(
 check("copy has same sections (no defaults added)", copySecs?.length === 3, copySecs?.length);
 check("copy has tasks", copyTasks?.length >= 3, copyTasks?.length);
 check("copied rules point at new sections", copyRules?.every((r) => !r.trigger_config.section_id || copySecs.some((s) => s.id === r.trigger_config.section_id)));
+const { data: copyT4 } = await cm1.from("tasks").select("task_tags(tag_id)").eq("project_id", copyId).eq("name", "Prioritise me").single();
+check("copy keeps task tags", copyT4?.task_tags?.some((x) => x.tag_id === keepTag.id), copyT4);
 const { data: copySub } = await cm1.from("tasks").select("parent_id, section_id").eq("project_id", copyId).eq("name", `Sectioned subtask ${run}`).single();
 const { data: copySubSec } = await cm1.from("sections").select("task_id, name").eq("id", copySub?.section_id ?? crypto.randomUUID()).maybeSingle();
 check("copy keeps subtask sections, owned by the copied task", copySubSec?.name === "Checklist" && copySubSec.task_id === copySub.parent_id, copySub);

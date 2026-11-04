@@ -11,12 +11,14 @@ const supabase = () => createClient();
 export type TaskHit = Pick<
   Task,
   "id" | "name" | "project_id" | "parent_id" | "assignee_id" | "due_date" | "start_date" | "completed" | "is_milestone"
-> & { project: { id: string; name: string; color: string } | null };
+> & { project: { id: string; name: string; color: string } | null; task_tags: { tag_id: string }[] };
 
 export type GoalHit = Pick<Goal, "id" | "name" | "status" | "time_period">;
 
 const HIT_SELECT =
-  "id, name, project_id, parent_id, assignee_id, due_date, start_date, completed, is_milestone, project:projects(id, name, color)";
+  "id, name, project_id, parent_id, assignee_id, due_date, start_date, completed, is_milestone, project:projects(id, name, color), task_tags(tag_id)";
+/** Adds a filtering-only join, so `task_tags` above still lists every tag of each hit. */
+const HIT_SELECT_TAGGED = `${HIT_SELECT}, tagged:task_tags!inner(tag_id)`;
 
 /** Debounce a fast-changing value (e.g. a search box). */
 export function useDebounced<T>(value: T, ms = 200): T {
@@ -80,6 +82,7 @@ export interface TaskSearchFilters {
   includeCompleted: boolean;
   assigneeId: string | null;
   projectId: string | null;
+  tagId: string | null;
 }
 
 /**
@@ -88,14 +91,17 @@ export interface TaskSearchFilters {
  */
 export function useTaskSearch(filters: TaskSearchFilters, limit = 100) {
   const term = filters.q.trim();
-  const active = term.length > 0 || !!filters.assigneeId || !!filters.projectId;
+  const active = term.length > 0 || !!filters.assigneeId || !!filters.projectId || !!filters.tagId;
   return useQuery({
-    queryKey: ["search", "tasks", term, filters.includeCompleted, filters.assigneeId, filters.projectId, limit],
+    queryKey: ["search", "tasks", term, filters.includeCompleted, filters.assigneeId, filters.projectId, filters.tagId, limit],
     enabled: active,
     placeholderData: keepPreviousData,
     queryFn: async (): Promise<TaskHit[]> => {
       const base = () => {
-        let q = supabase().from("tasks").select(HIT_SELECT);
+        let q = supabase()
+          .from("tasks")
+          .select(filters.tagId ? HIT_SELECT_TAGGED : HIT_SELECT);
+        if (filters.tagId) q = q.eq("tagged.tag_id", filters.tagId);
         if (!filters.includeCompleted) q = q.eq("completed", false);
         if (filters.assigneeId) q = q.eq("assignee_id", filters.assigneeId);
         if (filters.projectId) q = q.eq("project_id", filters.projectId);

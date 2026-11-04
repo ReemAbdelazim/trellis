@@ -47,6 +47,10 @@ function describe(a: TaskActivity, people: Map<string, Profile>): string {
       return `attached ${d.file_name}`;
     case "field_changed":
       return `changed ${d.field ?? "a field"}`;
+    case "tag_added":
+      return `added the tag “${d.tag}”`;
+    case "tag_removed":
+      return `removed the tag “${d.tag}”`;
     default:
       return a.kind.replace(/_/g, " ");
   }

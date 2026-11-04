@@ -3,13 +3,15 @@
 import { ArrowUpDown, Filter, Plus, Search, X } from "lucide-react";
 import { useMe } from "@/lib/queries/me";
 import { useProfileMap } from "@/lib/queries/people";
+import { useTagMap } from "@/lib/queries/tags";
 import { Button } from "@/components/ui/button";
 import { Menu, MenuCheckItem, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
 import { cn } from "@/lib/utils";
-import type { Profile } from "@/types/models";
+import type { Profile, Tag } from "@/types/models";
 import {
   activeFilterCount,
   DEFAULT_VIEW_OPTIONS,
+  NO_FILTERS,
   SORT_LABEL,
   type DueFilter,
   type SortKey,
@@ -37,6 +39,7 @@ export function TaskViewToolbar({
   onSearchChange,
   onAddTask,
   assigneeIds,
+  tagIds,
   children,
 }: {
   options: ViewOptions;
@@ -47,12 +50,19 @@ export function TaskViewToolbar({
   onAddTask?: () => void;
   /** People who currently have tasks in the project (assignee filter choices). */
   assigneeIds: string[];
+  /** Tags on the project's tasks (tag filter choices). */
+  tagIds: string[];
   /** Extra right-aligned controls. */
   children?: React.ReactNode;
 }) {
   const me = useMe();
   const people = useProfileMap();
+  const tagMap = useTagMap();
   const filters = activeFilterCount(options);
+  const tags = tagIds
+    .map((id) => tagMap.get(id))
+    .filter((t): t is Tag => !!t)
+    .sort((a, b) => a.name.localeCompare(b.name));
   const others = assigneeIds
     .filter((id) => id !== me.id)
     .map((id) => people.get(id))
@@ -133,18 +143,26 @@ export function TaskViewToolbar({
                 <span className="truncate">{p.full_name || p.email}</span>
               </MenuCheckItem>
             ))}
+            {tags.length > 0 && (
+              <>
+                <MenuSeparator />
+                <MenuLabel>Tag</MenuLabel>
+                <MenuCheckItem checked={options.tag === "any"} onSelect={pick({ tag: "any" })}>
+                  Any tag
+                </MenuCheckItem>
+                {tags.map((t) => (
+                  <MenuCheckItem key={t.id} checked={options.tag === t.id} onSelect={pick({ tag: t.id })}>
+                    <span className="truncate">{t.name}</span>
+                  </MenuCheckItem>
+                ))}
+              </>
+            )}
             {filters > 0 && (
               <>
                 <MenuSeparator />
                 <MenuItem
                   icon={<X size={14} />}
-                  onSelect={() =>
-                    onOptionsChange({
-                      status: DEFAULT_VIEW_OPTIONS.status,
-                      assignee: DEFAULT_VIEW_OPTIONS.assignee,
-                      due: DEFAULT_VIEW_OPTIONS.due,
-                    })
-                  }
+                  onSelect={() => onOptionsChange({ status: DEFAULT_VIEW_OPTIONS.status, ...NO_FILTERS })}
                 >
                   Clear filters
                 </MenuItem>
