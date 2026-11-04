@@ -16,7 +16,7 @@ more. Built for [Seeds of Leadership](https://seedsofleadership.ca), free for an
 
 - **Projects** with List, Board, Timeline (Gantt with dependencies), Calendar, Dashboard, Overview
   and Workflow views; sections, drag and drop, templates and duplication
-- **Tasks** with subtasks, assignees, start/due dates, milestones, dependencies, attachments,
+- **Tasks** with subtasks (which can be grouped into sections), assignees, start/due dates, milestones, dependencies, attachments,
   comments with @mentions, followers, likes and a full activity history
 - **Custom fields** (text, number, date, single/multi select, people, checkbox) and **rules**
   ("when a task moves to Done, mark it complete")

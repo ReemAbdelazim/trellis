@@ -9,7 +9,7 @@ import type { TaskItem } from "@/lib/queries/tasks";
 import type { Json } from "@/types/database";
 import type { CustomField, FieldOption } from "@/types/models";
 import { TaskCounts } from "../task-list/list-row";
-import { guardDragListeners, taskDndId } from "../task-list/use-section-dnd";
+import { guardDragListeners, taskDndId } from "@/components/sections/use-section-dnd";
 
 /** Selected options of the project's single-select fields, for the pills on a card. */
 function selectPills(fields: CustomField[], values: Map<string, Json | null> | undefined) {

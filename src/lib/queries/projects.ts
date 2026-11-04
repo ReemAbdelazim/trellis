@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { qk } from "./keys";
 import { toast } from "sonner";
-import { errorMessage, nextPosition } from "@/lib/utils";
+import { errorMessage } from "@/lib/utils";
 import type {
   Project,
   ProjectInsert,
@@ -13,7 +13,6 @@ import type {
   ProjectStats,
   ProjectStatusUpdate,
   ProjectUpdate,
-  Section,
   StatusColor,
 } from "@/types/models";
 
@@ -225,81 +224,6 @@ export function useToggleFavorite() {
       toast.error(errorMessage(err));
     },
     onSettled: () => qc.invalidateQueries({ queryKey: qk.favorites }),
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Sections
-// ---------------------------------------------------------------------------
-export function useSections(projectId: string | null | undefined) {
-  return useQuery({
-    queryKey: qk.sections(projectId ?? ""),
-    enabled: !!projectId,
-    queryFn: async (): Promise<Section[]> => {
-      const { data, error } = await supabase()
-        .from("sections")
-        .select("*")
-        .eq("project_id", projectId!)
-        .order("position");
-      if (error) throw error;
-      return data;
-    },
-  });
-}
-
-export function useCreateSection(projectId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (input: { name: string; position?: number }) => {
-      const existing = qc.getQueryData<Section[]>(qk.sections(projectId)) ?? [];
-      const { data, error } = await supabase()
-        .from("sections")
-        .insert({ project_id: projectId, name: input.name, position: input.position ?? nextPosition(existing) })
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (section) => {
-      qc.setQueryData<Section[]>(qk.sections(projectId), (s = []) =>
-        [...s, section].sort((a, b) => a.position - b.position),
-      );
-    },
-  });
-}
-
-export function useUpdateSection(projectId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, ...patch }: Partial<Section> & { id: string }) => {
-      const { error } = await supabase().from("sections").update(patch).eq("id", id);
-      if (error) throw error;
-    },
-    onMutate: ({ id, ...patch }) => {
-      const prev = qc.getQueryData<Section[]>(qk.sections(projectId));
-      qc.setQueryData<Section[]>(qk.sections(projectId), (s = []) =>
-        s.map((x) => (x.id === id ? { ...x, ...patch } : x)).sort((a, b) => a.position - b.position),
-      );
-      return { prev };
-    },
-    // Callers show the error; just roll back here.
-    onError: (_e, _v, ctx) => {
-      if (ctx?.prev) qc.setQueryData(qk.sections(projectId), ctx.prev);
-    },
-  });
-}
-
-export function useDeleteSection(projectId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase().from("sections").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: qk.sections(projectId) });
-      qc.invalidateQueries({ queryKey: qk.projectTasks(projectId) });
-    },
   });
 }
 

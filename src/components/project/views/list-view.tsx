@@ -18,8 +18,8 @@ import type { Json } from "@/types/database";
 import type { CustomField, Section } from "@/types/models";
 import { TaskViewToolbar } from "../task-list/toolbar";
 import { useProjectTasksView } from "../task-list/use-project-tasks-view";
-import { guardDragListeners, sectionDndId, taskDndId, useSectionDnd } from "../task-list/use-section-dnd";
-import { DeleteSectionDialog, SectionMenu, SectionName, useSectionActions, type SectionActions } from "../task-list/section-controls";
+import { guardDragListeners, sectionDndId, taskDndId, useSectionDnd } from "@/components/sections/use-section-dnd";
+import { DeleteSectionDialog, SectionMenu, SectionName, useSectionActions, type SectionActions } from "@/components/sections/section-controls";
 import { AddTaskInput, useAddTask } from "../task-list/task-inputs";
 import { CELL, listColumns, ListRow, ListRowOverlay, NAME_CELL, ROW_GRID } from "../task-list/list-row";
 import { routes } from "@/lib/routes";
@@ -31,10 +31,10 @@ export function ProjectListView({ projectId }: { projectId: string }) {
   const { data: fields = [] } = useCustomFields(projectId);
   const { map: fieldValues } = useProjectFieldValues(projectId);
   const setField = useSetFieldValue(projectId);
-  const actions = useSectionActions(projectId, sections);
+  const actions = useSectionActions({ projectId }, sections);
   const addTask = useAddTask(projectId, allBySection);
   const manual = view.options.sort === "manual";
-  const dnd = useSectionDnd({ projectId, sections, groups: view.groups, tasksById, allBySection, manual });
+  const dnd = useSectionDnd({ owner: { projectId }, sections, groups: view.groups, tasksById, allBySection, manual });
 
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   // Bumping `n` focuses that section's "Add task…" input.

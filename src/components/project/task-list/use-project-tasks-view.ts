@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { useMe } from "@/lib/queries/me";
 import { useProfileMap } from "@/lib/queries/people";
-import { useCanEditProject, useSections } from "@/lib/queries/projects";
+import { useCanEditProject } from "@/lib/queries/projects";
+import { sectionsFilter, sectionsKey, useSections } from "@/lib/queries/sections";
 import { useProjectTasks } from "@/lib/queries/tasks";
 import { useRealtime } from "@/lib/queries/realtime";
 import { qk } from "@/lib/queries/keys";
@@ -17,7 +18,7 @@ export function useProjectTasksView(projectId: string) {
   const me = useMe();
   const people = useProfileMap();
   const canEdit = useCanEditProject(projectId);
-  const sectionsQ = useSections(projectId);
+  const sectionsQ = useSections({ projectId });
   const tasksQ = useProjectTasks(projectId);
   const [options, setOptions] = useViewOptions(projectId);
   const [search, setSearch] = useState("");
@@ -28,7 +29,7 @@ export function useProjectTasksView(projectId: string) {
     // Field values have no project column to filter on; task edits are a good enough nudge.
     invalidate: [qk.projectTasks(projectId), qk.fieldValues(projectId)],
   });
-  useRealtime({ table: "sections", filter: `project_id=eq.${projectId}`, invalidate: [qk.sections(projectId)] });
+  useRealtime({ table: "sections", filter: sectionsFilter({ projectId }), invalidate: [sectionsKey({ projectId })] });
 
   const sections = useMemo(() => sectionsQ.data ?? [], [sectionsQ.data]);
   const tasks = useMemo(() => tasksQ.data ?? [], [tasksQ.data]);

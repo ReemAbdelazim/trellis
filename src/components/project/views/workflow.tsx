@@ -10,14 +10,8 @@ import { ConfirmDialog, EmptyState, InlineEdit, Spinner } from "@/components/ui/
 import { FieldsManager } from "@/components/fields/fields-manager";
 import { ManagerCard, ReorderButtons } from "@/components/fields/manager-bits";
 import { RulesManager } from "@/components/rules/rules-manager";
-import {
-  useCanEditProject,
-  useCreateSection,
-  useDeleteSection,
-  useProjectAccess,
-  useSections,
-  useUpdateSection,
-} from "@/lib/queries/projects";
+import { useCanEditProject, useProjectAccess } from "@/lib/queries/projects";
+import { sectionsKey, useCreateSection, useDeleteSection, useSections, useUpdateSection } from "@/lib/queries/sections";
 import { useProjectTasks } from "@/lib/queries/tasks";
 import { qk } from "@/lib/queries/keys";
 import { errorMessage } from "@/lib/utils";
@@ -47,11 +41,11 @@ export function ProjectWorkflow({ projectId }: { projectId: string }) {
 
 function SectionsManager({ projectId, canEdit }: { projectId: string; canEdit: boolean }) {
   const qc = useQueryClient();
-  const { data: sections = [], isLoading } = useSections(projectId);
+  const { data: sections = [], isLoading } = useSections({ projectId });
   const { data: tasks = [] } = useProjectTasks(projectId);
-  const create = useCreateSection(projectId);
-  const update = useUpdateSection(projectId);
-  const del = useDeleteSection(projectId);
+  const create = useCreateSection({ projectId });
+  const update = useUpdateSection({ projectId });
+  const del = useDeleteSection({ projectId });
   const [name, setName] = useState("");
   const [confirm, setConfirm] = useState<Section | null>(null);
 
@@ -59,7 +53,7 @@ function SectionsManager({ projectId, canEdit }: { projectId: string; canEdit: b
   for (const t of tasks) if (t.section_id) counts.set(t.section_id, (counts.get(t.section_id) ?? 0) + 1);
 
   const refresh = () => {
-    qc.invalidateQueries({ queryKey: qk.sections(projectId) });
+    qc.invalidateQueries({ queryKey: sectionsKey({ projectId }) });
     // Rules may reference sections.
     qc.invalidateQueries({ queryKey: qk.rules(projectId) });
   };

@@ -20,8 +20,7 @@ import {
   type UniqueIdentifier,
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { qk } from "@/lib/queries/keys";
-import { useUpdateSection } from "@/lib/queries/projects";
+import { sectionTasksKey, useUpdateSection, type SectionOwner } from "@/lib/queries/sections";
 import { patchTaskInCaches, useUpdateTask, type TaskItem } from "@/lib/queries/tasks";
 import { toast } from "sonner";
 import { errorMessage, nextPosition, positionBetween } from "@/lib/utils";
@@ -33,6 +32,9 @@ import type { Section } from "@/types/models";
 
 export const taskDndId = (id: string) => `task:${id}`;
 export const sectionDndId = (id: string) => `section:${id}`;
+
+/** Group key for subtasks outside any section (listed above the sections). Section ids are UUIDs, so it can't clash. */
+export const NO_SECTION = "none";
 
 function parseDndId(id: UniqueIdentifier): { type: "task" | "section"; id: string } {
   const s = String(id);
@@ -77,22 +79,22 @@ interface Override {
 }
 
 /**
- * Shared drag-and-drop state for views that show tasks grouped by section
- * (list rows, board cards) with sortable sections. Moves are optimistic: the
- * dropped order is held locally until the query cache reflects it, so nothing
- * snaps back for a frame.
+ * Shared drag-and-drop state for tasks grouped by section with sortable
+ * sections: project list rows and board cards, and a task's subtasks (which
+ * may also use the NO_SECTION group). Moves are optimistic: the dropped order
+ * is held locally until the query cache reflects it, so nothing snaps back.
  */
 export function useSectionDnd({
-  projectId,
+  owner,
   sections,
   groups,
   tasksById,
   allBySection,
   manual,
 }: {
-  projectId: string;
+  owner: SectionOwner;
   sections: Section[];
-  /** Visible task ids per section in display order (memoized by the caller). */
+  /** Visible task ids per section (or NO_SECTION) in display order (memoized by the caller). */
   groups: Groups;
   tasksById: Map<string, TaskItem>;
   /** Every task per section, ignoring filters (append positions). */
@@ -102,7 +104,7 @@ export function useSectionDnd({
 }) {
   const qc = useQueryClient();
   const updateTask = useUpdateTask();
-  const updateSection = useUpdateSection(projectId);
+  const updateSection = useUpdateSection(owner);
   const sectionIds = useMemo(() => sections.map((s) => s.id), [sections]);
 
   const [active, setActive] = useState<{ type: "task" | "section"; id: string } | null>(null);
@@ -139,7 +141,10 @@ export function useSectionDnd({
       if (parseDndId(args.active.id).type === "section") {
         return closestCenter({
           ...args,
-          droppableContainers: args.droppableContainers.filter((c) => parseDndId(c.id).type === "section"),
+          droppableContainers: args.droppableContainers.filter((c) => {
+            const p = parseDndId(c.id);
+            return p.type === "section" && order.includes(p.id);
+          }),
         });
       }
       if (recentlyMoved.current && lastOverId.current) return [{ id: lastOverId.current }];
@@ -165,7 +170,7 @@ export function useSectionDnd({
       if (result.length) lastOverId.current = result[0].id;
       return result.length ? result : lastOverId.current ? [{ id: lastOverId.current }] : [];
     },
-    [items],
+    [items, order],
   );
 
   const onDragStart = ({ active: a }: DragStartEvent) => {
@@ -196,13 +201,11 @@ export function useSectionDnd({
     });
   };
 
-  const moveTask = (id: string, patch: { section_id: string; position: number }) => {
+  const moveTask = (id: string, container: string, position: number) => {
+    const patch = { section_id: container === NO_SECTION ? null : container, position };
     // Patch synchronously so the drop and the cache agree before the request starts.
     patchTaskInCaches(qc, id, patch);
-    updateTask.mutate(
-      { id, ...patch },
-      { onError: () => qc.invalidateQueries({ queryKey: qk.projectTasks(projectId) }) },
-    );
+    updateTask.mutate({ id, ...patch }, { onError: () => qc.invalidateQueries({ queryKey: sectionTasksKey(owner) }) });
   };
 
   const onDragEnd = ({ active: a, over }: DragEndEvent) => {
@@ -241,7 +244,7 @@ export function useSectionDnd({
       if (container === original) return setOverride(null);
       settle({ tasks: { ...state.tasks, [container]: list } });
       const others = (allBySection.get(container) ?? []).filter((t) => t.id !== dragged.id);
-      moveTask(dragged.id, { section_id: container, position: nextPosition(others) });
+      moveTask(dragged.id, container, nextPosition(others));
       return;
     }
 
@@ -262,11 +265,11 @@ export function useSectionDnd({
       full.forEach((id, i) => {
         const t = tasksById.get(id) ?? (allBySection.get(container) ?? []).find((x) => x.id === id);
         const p = (i + 1) * 1000;
-        if (t && (t.position !== p || id === dragged.id)) moveTask(id, { section_id: container, position: p });
+        if (t && (t.position !== p || id === dragged.id)) moveTask(id, container, p);
       });
       return;
     }
-    moveTask(dragged.id, { section_id: container, position });
+    moveTask(dragged.id, container, position);
   };
 
   const onDragCancel = () => {

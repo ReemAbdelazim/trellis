@@ -18,7 +18,8 @@ export const qk = {
   allProjectMemberships: ["project-members", "all"] as const,
   collaborators: (userId: string) => ["collaborators", userId] as const,
   favorites: ["favorites"] as const,
-  sections: (projectId: string) => ["sections", projectId] as const,
+  /** A project's sections (`project_id`) or a task's subtask sections (`task_id`). */
+  sections: (owner: "project_id" | "task_id", id: string) => ["sections", owner, id] as const,
 
   /** Every task list lives under ["tasks", ...] so optimistic patches can find them. */
   tasks: ["tasks"] as const,

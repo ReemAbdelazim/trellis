@@ -52,8 +52,11 @@ for permissions — UI checks only hide controls.
   `public` projects and on `team` projects of teams they belong to. Guests only get explicit membership.
 - Tasks: visible if you can view the project, or you created / are assigned / follow it, or can see its
   parent. Editable by project editors, the creator, or the assignee. RPCs: `can_edit_task`, `can_comment_task`.
-- Subtasks inherit `project_id` from their parent (trigger) and have no section. Project views list only
-  `parent_id is null` tasks.
+- Subtasks inherit `project_id` from their parent (trigger). Project views list only `parent_id is null`
+  tasks.
+- `sections` belong to exactly one owner: a project (`project_id`, every top-level task sits in one) or a
+  task (`task_id`, grouping its subtasks; a subtask may also have no section). The task trigger resets a
+  `section_id` that doesn't belong to the task's project or parent.
 - **Two-factor is mandatory**: a restrictive `mfa_required` policy on every table requires the
   session's `aal` claim to be `aal2`, and every `public.*` helper answers only for aal2 sessions.
 - **Password accounts** get a profile only after confirming their email (`private.provision_profile`
@@ -85,8 +88,10 @@ Add new hooks next to the existing ones (new file per feature is fine). Patterns
 - Task selects use `TASK_COLUMNS` from `tasks.ts` (never `*`: it would download the full-text index).
 - Current user: `useMe()` (profile), `useIsAdmin()`, `useIsGuest()` from `src/lib/queries/me.tsx`.
 - People: `useProfiles`, `useActiveProfiles`, `useProfileMap`, `useProfile(id)`.
-- Projects: `useProjects`, `useProject`, `useProjectAccess`, `useCanEditProject`, `useSections`,
-  `useCreateSection`/`useUpdateSection`/`useDeleteSection`, `useProjectMembers`, `useProjectStats` (RPC).
+- Projects: `useProjects`, `useProject`, `useProjectAccess`, `useCanEditProject`, `useProjectMembers`,
+  `useProjectStats` (RPC).
+- Sections (`src/lib/queries/sections.ts`): `useSections`, `useCreateSection`/`useUpdateSection`/
+  `useDeleteSection`, all taking an owner: `{ projectId }` or `{ taskId }`.
 - Tasks: `useProjectTasks(projectId)` (→ `TaskItem[]` with `subtask_count`, `comment_count`),
   `useMyTasks(userId)`, `useSubtasks`, `useTask`, `useCanEditTask`, `useUpdateTask`, `useCreateTask`, `useDeleteTask`.
 - Custom fields: `useCustomFields`, `useProjectFieldValues` (→ `map: Map<taskId, Map<fieldId, value>>`),
@@ -108,8 +113,9 @@ Add new hooks next to the existing ones (new file per feature is fine). Patterns
 - Reusable pieces: `components/ui/*` (Button, Input/Textarea/Select/Label, Dialog, Menu*, Popover*,
   Tooltip, Avatar/AvatarStack, DatePicker/Calendar, UserPicker/MultiUserPicker/PeopleList, misc:
   Spinner, PageLoader, EmptyState, Pill, StatusPill, ColorDot, ColorSwatches, ProgressBar, InlineEdit,
-  ConfirmDialog, Kbd, SectionHeading) and `components/task/task-bits.tsx` (TaskCheckbox, AssigneeButton,
-  DueDateButton).
+  ConfirmDialog, Kbd, SectionHeading), `components/task/task-bits.tsx` (TaskCheckbox, AssigneeButton,
+  DueDateButton) and `components/sections/*` (section rename/menu/delete and drag-and-drop, shared by the
+  project list and board views and subtasks).
 - Helpers in `src/lib/utils.ts`: `cn`, `positionBetween`, `nextPosition`, `formatDue`, `formatDateRange`,
   `dueTone` + `DUE_TONE_CLASS`, `timeAgo`, `colorHex`, `toISODate`, `toDate`, `errorMessage`.
 - Colors: only theme tokens (`bg-surface`, `bg-surface-2`, `text-muted`, `text-faint`, `border-border`,

@@ -2,7 +2,8 @@
 
 import { useMemo } from "react";
 import { useMe } from "@/lib/queries/me";
-import { useCanEditProject, useSections } from "@/lib/queries/projects";
+import { useCanEditProject } from "@/lib/queries/projects";
+import { useSections } from "@/lib/queries/sections";
 import { qk } from "@/lib/queries/keys";
 import { useRealtime } from "@/lib/queries/realtime";
 import { newId, useCreateTask, useProjectTasks, useUpdateTask } from "@/lib/queries/tasks";
@@ -16,7 +17,7 @@ export function ProjectCalendarView({ projectId }: { projectId: string }) {
   const me = useMe();
   const { openTask } = useTaskPane();
   const { data: tasks = [], isLoading } = useProjectTasks(projectId);
-  const { data: sections = [] } = useSections(projectId);
+  const { data: sections = [] } = useSections({ projectId });
   const canEdit = useCanEditProject(projectId);
   const update = useUpdateTask();
   const create = useCreateTask();

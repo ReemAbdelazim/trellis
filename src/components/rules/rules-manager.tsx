@@ -10,7 +10,7 @@ import { Switch } from "@/components/fields/field-meta";
 import { useCustomFields } from "@/lib/queries/fields";
 import { useMe } from "@/lib/queries/me";
 import { useProfileMap } from "@/lib/queries/people";
-import { useSections } from "@/lib/queries/projects";
+import { useSections } from "@/lib/queries/sections";
 import {
   ruleActions,
   ruleTriggerConfig,
@@ -46,7 +46,7 @@ interface Template {
 export function RulesManager({ projectId, canEdit }: { projectId: string; canEdit: boolean }) {
   const me = useMe();
   const { data: rules = [], isLoading } = useRules(projectId);
-  const { data: sections = [] } = useSections(projectId);
+  const { data: sections = [] } = useSections({ projectId });
   const { data: fields = [] } = useCustomFields(projectId);
   const people = useProfileMap();
   const create = useCreateRule(projectId);

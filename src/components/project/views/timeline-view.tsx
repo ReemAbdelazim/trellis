@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog, EmptyState, PageLoader } from "@/components/ui/misc";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useProfileMap } from "@/lib/queries/people";
-import { useCanEditProject, useSections } from "@/lib/queries/projects";
+import { useCanEditProject } from "@/lib/queries/projects";
+import { useSections } from "@/lib/queries/sections";
 import { useRealtime } from "@/lib/queries/realtime";
 import { qk } from "@/lib/queries/keys";
 import { useSetDependency } from "@/lib/queries/task-detail";
@@ -43,7 +44,7 @@ const NO_SECTION = "__none";
 export function ProjectTimelineView({ projectId }: { projectId: string }) {
   const { openTask } = useTaskPane();
   const { data: tasks = [], isLoading } = useProjectTasks(projectId);
-  const { data: sections = [] } = useSections(projectId);
+  const { data: sections = [] } = useSections({ projectId });
   const { data: deps = [] } = useProjectDependencies(projectId);
   const canEdit = useCanEditProject(projectId);
   const people = useProfileMap();

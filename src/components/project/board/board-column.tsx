@@ -9,8 +9,8 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { TaskItem } from "@/lib/queries/tasks";
 import type { Section } from "@/types/models";
-import { SectionMenu, SectionName, type SectionActions } from "../task-list/section-controls";
-import { guardDragListeners, sectionDndId, taskDndId } from "../task-list/use-section-dnd";
+import { SectionMenu, SectionName, type SectionActions } from "@/components/sections/section-controls";
+import { guardDragListeners, sectionDndId, taskDndId } from "@/components/sections/use-section-dnd";
 
 export const COLUMN_WIDTH = "w-[272px]";
 

@@ -242,6 +242,30 @@ check("set custom field value", !fvErr, fvErr?.message);
 const { data: t4row } = await cm2.from("tasks").select("assignee_id").eq("id", t4).single();
 check("rule: field change assigns task", t4row?.assignee_id === a.user.id);
 
+console.log("\nSubtask sections");
+const { data: subSec, error: subSecErr } = await cm1.from("sections").insert({ task_id: t1, name: "Phase 1" }).select().single();
+check("editor can add a section to a task's subtasks", !subSecErr, subSecErr?.message);
+const { error: outsiderSecErr } = await cm2.from("sections").insert({ task_id: t1, name: "nope" });
+check("someone who can't edit the task can't add subtask sections", !!outsiderSecErr);
+const { data: outsiderSecs } = await cm2.from("sections").select("id").eq("task_id", t1);
+check("…or see them", outsiderSecs?.length === 0);
+const { error: twoOwners } = await cm1.from("sections").insert({ task_id: t1, project_id: priv.id, name: "both" });
+check("a section belongs to a project or a task, not both", !!twoOwners);
+const { data: inSec } = await cm1.from("tasks").update({ section_id: subSec.id }).eq("id", sub).select("section_id").single();
+check("subtask moves into its parent's section", inSec?.section_id === subSec.id);
+const { data: foreign } = await cm1.from("tasks").update({ section_id: secs[0].id }).eq("id", sub).select("section_id").single();
+check("subtask can't join a project section or another task's", foreign?.section_id === null);
+await cm1.from("tasks").update({ section_id: subSec.id }).eq("id", sub);
+await cm1.from("sections").update({ task_id: t4 }).eq("id", subSec.id);
+const { data: kept } = await cm1.from("sections").select("task_id").eq("id", subSec.id).single();
+check("a section can't move to another task", kept?.task_id === t1);
+await cm1.from("sections").delete().eq("id", subSec.id);
+const { data: afterDel } = await cm1.from("tasks").select("id, section_id").eq("id", sub).single();
+check("deleting a subtask section keeps its subtasks, outside any section", afterDel?.id === sub && afterDel.section_id === null);
+// Kept for the duplicate test below.
+const { data: t4Sec } = await cm1.from("sections").insert({ task_id: t4, name: "Checklist" }).select().single();
+await cm1.from("tasks").insert({ parent_id: t4, section_id: t4Sec.id, name: `Sectioned subtask ${run}`, created_by: await uid(cm1) });
+
 console.log("\nTemplates");
 const { data: copyId, error: dupErr } = await cm1.rpc("duplicate_project", { p_project: pub.id, p_name: `Copy ${run}`, p_include_tasks: true, p_as_template: false });
 check("duplicate project", !dupErr, dupErr?.message);
@@ -251,6 +275,9 @@ const { data: copyRules } = await cm1.from("rules").select("trigger_config").eq(
 check("copy has same sections (no defaults added)", copySecs?.length === 3, copySecs?.length);
 check("copy has tasks", copyTasks?.length >= 3, copyTasks?.length);
 check("copied rules point at new sections", copyRules?.every((r) => !r.trigger_config.section_id || copySecs.some((s) => s.id === r.trigger_config.section_id)));
+const { data: copySub } = await cm1.from("tasks").select("parent_id, section_id").eq("project_id", copyId).eq("name", `Sectioned subtask ${run}`).single();
+const { data: copySubSec } = await cm1.from("sections").select("task_id, name").eq("id", copySub?.section_id ?? crypto.randomUUID()).maybeSingle();
+check("copy keeps subtask sections, owned by the copied task", copySubSec?.name === "Checklist" && copySubSec.task_id === copySub.parent_id, copySub);
 
 console.log("\nSecurity regressions");
 const m1id = await uid(cm1);

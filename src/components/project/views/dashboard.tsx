@@ -6,7 +6,7 @@ import { CircleCheck, CircleDashed, ListTodo, TriangleAlert } from "lucide-react
 import { Avatar } from "@/components/ui/avatar";
 import { PageLoader } from "@/components/ui/misc";
 import { useProfileMap } from "@/lib/queries/people";
-import { useSections } from "@/lib/queries/projects";
+import { useSections } from "@/lib/queries/sections";
 import { qk } from "@/lib/queries/keys";
 import { useRealtime } from "@/lib/queries/realtime";
 import { useProjectTasks } from "@/lib/queries/tasks";
@@ -18,7 +18,7 @@ const MAX_PEOPLE = 10;
 
 export function ProjectDashboard({ projectId }: { projectId: string }) {
   const { data: tasks = [], isLoading } = useProjectTasks(projectId);
-  const { data: sections = [] } = useSections(projectId);
+  const { data: sections = [] } = useSections({ projectId });
   const people = useProfileMap();
   const today = useToday();
 

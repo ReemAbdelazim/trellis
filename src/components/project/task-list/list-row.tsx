@@ -10,7 +10,7 @@ import type { TaskItem } from "@/lib/queries/tasks";
 import type { Json } from "@/types/database";
 import type { CustomField } from "@/types/models";
 import { TaskNameInput } from "./task-inputs";
-import { guardDragListeners, taskDndId } from "./use-section-dnd";
+import { guardDragListeners, taskDndId } from "@/components/sections/use-section-dnd";
 
 /** Grid template shared by the header, rows and add rows (set as --cols on the table). */
 export function listColumns(fieldCount: number) {

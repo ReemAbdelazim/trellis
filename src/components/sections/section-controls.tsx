@@ -3,18 +3,23 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
-import { useCreateSection, useDeleteSection, useUpdateSection } from "@/lib/queries/projects";
+import { useCreateSection, useDeleteSection, useUpdateSection, type SectionOwner } from "@/lib/queries/sections";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog, InlineEdit } from "@/components/ui/misc";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
 import { cn, errorMessage, nextPosition, positionBetween } from "@/lib/utils";
 import type { Section } from "@/types/models";
 
-/** Section create / rename / delete state shared by the list and board views. */
-export function useSectionActions(projectId: string, sections: Section[]) {
-  const create = useCreateSection(projectId);
-  const update = useUpdateSection(projectId);
-  const del = useDeleteSection(projectId);
+/**
+ * Section create / rename / delete state shared by the project list and board
+ * views and a task's subtasks. A project always keeps one section and moves a
+ * deleted section's tasks to another; subtasks can sit outside any section.
+ */
+export function useSectionActions(owner: SectionOwner, sections: Section[]) {
+  const create = useCreateSection(owner);
+  const update = useUpdateSection(owner);
+  const del = useDeleteSection(owner);
+  const forSubtasks = "taskId" in owner;
   // Bumping `n` remounts the section's name in edit mode.
   const [renaming, setRenaming] = useState<{ id: string; n: number } | null>(null);
   const [deleting, setDeleting] = useState<Section | null>(null);
@@ -46,6 +51,10 @@ export function useSectionActions(projectId: string, sections: Section[]) {
   };
 
   return {
+    /** What the sections hold, for labels. */
+    noun: forSubtasks ? "subtask" : "task",
+    /** Projects need at least one section; a task's subtasks don't. */
+    canDeleteLast: forSubtasks,
     add,
     adding: create.isPending,
     rename,
@@ -118,7 +127,7 @@ export function SectionMenu({
         <MenuItem
           icon={<Trash2 size={14} />}
           danger
-          disabled={sectionCount <= 1}
+          disabled={!actions.canDeleteLast && sectionCount <= 1}
           onSelect={() => actions.askDelete(section)}
         >
           Delete section
@@ -128,7 +137,7 @@ export function SectionMenu({
   );
 }
 
-/** Confirm dialog for deleting a section; its tasks move to the first remaining section. */
+/** Confirm dialog for deleting a section; its tasks move to the first remaining section (or out of any section). */
 export function DeleteSectionDialog({
   actions,
   sections,
@@ -141,15 +150,18 @@ export function DeleteSectionDialog({
   const section = actions.deleting;
   const target = sections.find((s) => s.id !== section?.id);
   const count = section ? taskCount(section.id) : 0;
+  const items = `${count} ${actions.noun}${count === 1 ? "" : "s"}`;
   return (
     <ConfirmDialog
       open={!!section}
       onOpenChange={(open) => !open && actions.askDelete(null)}
       title={`Delete “${section?.name || "Untitled section"}”?`}
       description={
-        count > 0 && target
-          ? `${count} ${count === 1 ? "task" : "tasks"} in this section will move to “${target.name}”.`
-          : "This section is empty."
+        count === 0
+          ? "This section is empty."
+          : actions.canDeleteLast
+            ? `${items} in this section will stay, without a section.`
+            : `${items} in this section will move to “${target?.name || "Untitled section"}”.`
       }
       confirmLabel="Delete section"
       pending={actions.removing}

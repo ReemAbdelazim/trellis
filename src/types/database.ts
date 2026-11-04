@@ -487,14 +487,14 @@ isOneToOne: false
                   ]
                 },"sections": {
                   Row: {
-                    "created_at": string,"id": string,"name": string,"position": number,"project_id": string
+                    "created_at": string,"id": string,"name": string,"position": number,"project_id": string | null,"task_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"id"?: string,"name": string,"position"?: number,"project_id": string
+                    "created_at"?: string,"id"?: string,"name": string,"position"?: number,"project_id"?: string | null,"task_id"?: string | null
                   }
                   Update: {
-                    "created_at"?: string,"id"?: string,"name"?: string,"position"?: number,"project_id"?: string
+                    "created_at"?: string,"id"?: string,"name"?: string,"position"?: number,"project_id"?: string | null,"task_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -502,6 +502,12 @@ isOneToOne: false
       columns: ["project_id"]
 isOneToOne: false
       referencedRelation: "projects"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "sections_task_id_fkey"
+      columns: ["task_id"]
+isOneToOne: false
+      referencedRelation: "tasks"
       referencedColumns: ["id"]
     }
                   ]

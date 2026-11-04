@@ -13,8 +13,8 @@ import { cn } from "@/lib/utils";
 import type { Section } from "@/types/models";
 import { TaskViewToolbar } from "../task-list/toolbar";
 import { useProjectTasksView } from "../task-list/use-project-tasks-view";
-import { sectionDndId, useSectionDnd } from "../task-list/use-section-dnd";
-import { DeleteSectionDialog, useSectionActions } from "../task-list/section-controls";
+import { sectionDndId, useSectionDnd } from "@/components/sections/use-section-dnd";
+import { DeleteSectionDialog, useSectionActions } from "@/components/sections/section-controls";
 import { useAddTask } from "../task-list/task-inputs";
 import { BoardCard, BoardCardOverlay } from "../board/board-card";
 import { BoardColumn, COLUMN_WIDTH } from "../board/board-column";
@@ -25,10 +25,10 @@ export function ProjectBoardView({ projectId }: { projectId: string }) {
   const { taskId: openId, openTask } = useTaskPane();
   const { data: fields = [] } = useCustomFields(projectId);
   const { map: fieldValues } = useProjectFieldValues(projectId);
-  const actions = useSectionActions(projectId, sections);
+  const actions = useSectionActions({ projectId }, sections);
   const addTask = useAddTask(projectId, allBySection);
   const manual = view.options.sort === "manual";
-  const dnd = useSectionDnd({ projectId, sections, groups: view.groups, tasksById, allBySection, manual });
+  const dnd = useSectionDnd({ owner: { projectId }, sections, groups: view.groups, tasksById, allBySection, manual });
   // Bumping `n` opens that column's composer.
   const [compose, setCompose] = useState<{ sectionId: string; n: number } | null>(null);
 

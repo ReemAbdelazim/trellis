@@ -16,7 +16,8 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useMe } from "@/lib/queries/me";
-import { useProjects, useSections } from "@/lib/queries/projects";
+import { useProjects } from "@/lib/queries/projects";
+import { useSections } from "@/lib/queries/sections";
 import { useCanEditTask, useDeleteTask, useTask, useUpdateTask } from "@/lib/queries/tasks";
 import { useFollowers, useLikes, useSetFollower, useToggleLike } from "@/lib/queries/task-detail";
 import { useCustomFields, useSetFieldValue, useTaskFieldValues } from "@/lib/queries/fields";
@@ -370,7 +371,7 @@ function Description({ task, disabled }: { task: Task; disabled: boolean }) {
 
 function ProjectField({ task, canEdit }: { task: Task; canEdit: boolean }) {
   const { data: projects = [] } = useProjects();
-  const { data: sections = [] } = useSections(task.project_id);
+  const { data: sections = [] } = useSections(task.project_id ? { projectId: task.project_id } : null);
   const update = useUpdateTask();
   const project = projects.find((p) => p.id === task.project_id);
 
