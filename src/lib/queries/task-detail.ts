@@ -88,62 +88,51 @@ export function useActivity(taskId: string) {
 }
 
 // ---------------------------------------------------------------------------
-// Followers & likes
+// Followers & likes: the same shape, a set of people attached to a task
 // ---------------------------------------------------------------------------
-export function useFollowers(taskId: string) {
+const TASK_PEOPLE = {
+  followers: { table: "task_followers", key: qk.followers },
+  likes: { table: "task_likes", key: qk.likes },
+} as const;
+type TaskPeopleKind = keyof typeof TASK_PEOPLE;
+
+/** Ids of the people who follow (or like) a task. */
+export function useTaskPeople(kind: TaskPeopleKind, taskId: string) {
+  const { table, key } = TASK_PEOPLE[kind];
   return useQuery({
-    queryKey: qk.followers(taskId),
+    queryKey: key(taskId),
     queryFn: async (): Promise<string[]> => {
-      const { data, error } = await supabase().from("task_followers").select("user_id").eq("task_id", taskId);
+      const { data, error } = await supabase().from(table).select("user_id").eq("task_id", taskId);
       if (error) throw error;
-      return data.map((f) => f.user_id);
+      return data.map((r) => r.user_id);
     },
   });
 }
 
-export function useSetFollower(taskId: string) {
+/** Add or remove one person, optimistically; the list is restored if the server refuses. */
+export function useSetTaskPerson(kind: TaskPeopleKind, taskId: string) {
   const qc = useQueryClient();
+  const { table, key } = TASK_PEOPLE[kind];
+  const queryKey = key(taskId);
   return useMutation({
-    mutationFn: async ({ userId, follow }: { userId: string; follow: boolean }) => {
-      const q = supabase().from("task_followers");
-      const { error } = follow
+    mutationFn: async ({ userId, on }: { userId: string; on: boolean }) => {
+      const q = supabase().from(table);
+      const { error } = on
         ? await q.insert({ task_id: taskId, user_id: userId })
         : await q.delete().eq("task_id", taskId).eq("user_id", userId);
       if (error) throw error;
     },
-    onMutate: ({ userId, follow }) =>
-      qc.setQueryData<string[]>(qk.followers(taskId), (l = []) =>
-        follow ? [...new Set([...l, userId])] : l.filter((x) => x !== userId),
-      ),
-    onSettled: () => qc.invalidateQueries({ queryKey: qk.followers(taskId) }),
-    onError: (err) => toast.error(errorMessage(err)),
-  });
-}
-
-export function useLikes(taskId: string) {
-  return useQuery({
-    queryKey: qk.likes(taskId),
-    queryFn: async (): Promise<string[]> => {
-      const { data, error } = await supabase().from("task_likes").select("user_id").eq("task_id", taskId);
-      if (error) throw error;
-      return data.map((f) => f.user_id);
+    onMutate: async ({ userId, on }) => {
+      await qc.cancelQueries({ queryKey });
+      const previous = qc.getQueryData<string[]>(queryKey);
+      qc.setQueryData<string[]>(queryKey, (l = []) => (on ? [...new Set([...l, userId])] : l.filter((x) => x !== userId)));
+      return { previous };
     },
-  });
-}
-
-export function useToggleLike(taskId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ userId, like }: { userId: string; like: boolean }) => {
-      const q = supabase().from("task_likes");
-      const { error } = like
-        ? await q.insert({ task_id: taskId, user_id: userId })
-        : await q.delete().eq("task_id", taskId).eq("user_id", userId);
-      if (error) throw error;
+    onError: (err, _vars, ctx) => {
+      qc.setQueryData(queryKey, ctx?.previous);
+      toast.error(errorMessage(err));
     },
-    onMutate: ({ userId, like }) =>
-      qc.setQueryData<string[]>(qk.likes(taskId), (l = []) => (like ? [...l, userId] : l.filter((x) => x !== userId))),
-    onSettled: () => qc.invalidateQueries({ queryKey: qk.likes(taskId) }),
+    onSettled: () => qc.invalidateQueries({ queryKey }),
   });
 }
 

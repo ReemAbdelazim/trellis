@@ -19,7 +19,7 @@ import { useMe } from "@/lib/queries/me";
 import { useProjects } from "@/lib/queries/projects";
 import { useSections } from "@/lib/queries/sections";
 import { useCanEditTask, useDeleteTask, useTask, useUpdateTask } from "@/lib/queries/tasks";
-import { useFollowers, useLikes, useSetFollower, useToggleLike } from "@/lib/queries/task-detail";
+import { useSetTaskPerson, useTaskPeople } from "@/lib/queries/task-detail";
 import { useCustomFields, useSetFieldValue, useTaskFieldValues } from "@/lib/queries/fields";
 import { useProfileMap } from "@/lib/queries/people";
 import { useRealtime } from "@/lib/queries/realtime";
@@ -82,7 +82,6 @@ function useCanComment(taskId: string) {
 }
 
 function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () => void }) {
-  const me = useMe();
   const { data: task, isLoading } = useTask(taskId);
   const { data: canEdit = false } = useCanEditTask(taskId);
   const { data: canComment = false } = useCanComment(taskId);
@@ -216,7 +215,7 @@ function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () => void }
         </div>
       </div>
 
-      <Followers task={task} meId={me.id} />
+      <Followers task={task} />
 
       <ConfirmDialog
         open={confirmDelete}
@@ -459,8 +458,8 @@ function FieldRow({ label, children }: { label: string; children: React.ReactNod
 
 function LikeButton({ taskId }: { taskId: string }) {
   const me = useMe();
-  const { data: likes = [] } = useLikes(taskId);
-  const toggle = useToggleLike(taskId);
+  const { data: likes = [] } = useTaskPeople("likes", taskId);
+  const toggle = useSetTaskPerson("likes", taskId);
   const people = useProfileMap();
   const liked = likes.includes(me.id);
   const names = likes.map((id) => people.get(id)?.full_name).filter(Boolean).join(", ");
@@ -469,7 +468,7 @@ function LikeButton({ taskId }: { taskId: string }) {
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => toggle.mutate({ userId: me.id, like: !liked })}
+        onClick={() => toggle.mutate({ userId: me.id, on: !liked })}
         className={cn(liked && "text-accent")}
         aria-pressed={liked}
         aria-label="Like task"
@@ -481,16 +480,17 @@ function LikeButton({ taskId }: { taskId: string }) {
   );
 }
 
-function Followers({ task, meId }: { task: Task; meId: string }) {
-  const { data: followers = [] } = useFollowers(task.id);
-  const set = useSetFollower(task.id);
+function Followers({ task }: { task: Task }) {
+  const me = useMe();
+  const { data: followers = [] } = useTaskPeople("followers", task.id);
+  const set = useSetTaskPerson("followers", task.id);
   const people = useProfileMap();
-  const following = followers.includes(meId);
+  const following = followers.includes(me.id);
   return (
     <div className="flex h-12 shrink-0 items-center gap-3 border-t border-border bg-surface-2 px-4 text-xs text-muted">
       <span>Followers</span>
-      <MultiUserPicker value={followers} onToggle={(userId, follow) => set.mutate({ userId, follow })}>
-        <button className="rounded-full hover:opacity-80" aria-label="Manage followers">
+      <MultiUserPicker value={followers} onToggle={(userId, on) => set.mutate({ userId, on })}>
+        <button type="button" className="rounded-full hover:opacity-80" aria-label="Manage followers">
           {followers.length ? (
             <AvatarStack profiles={followers.map((id) => people.get(id))} max={6} size="xs" />
           ) : (
@@ -499,7 +499,7 @@ function Followers({ task, meId }: { task: Task; meId: string }) {
         </button>
       </MultiUserPicker>
       <span className="ml-auto text-faint">Created {timeAgo(task.created_at)}</span>
-      <Button size="xs" variant="ghost" onClick={() => set.mutate({ userId: meId, follow: !following })}>
+      <Button size="xs" variant="ghost" onClick={() => set.mutate({ userId: me.id, on: !following })}>
         {following ? "Leave task" : "Follow task"}
       </Button>
     </div>

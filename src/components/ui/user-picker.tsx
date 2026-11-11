@@ -98,7 +98,11 @@ function PeopleList({
   const [active, setActive] = useState(0);
   const activeRow = useRef<HTMLButtonElement>(null);
   // Keep the keyboard-highlighted person visible while arrowing through a long list.
-  useEffect(() => activeRow.current?.scrollIntoView({ block: "nearest" }), [active]);
+  // Braces matter: newer browsers return a Promise from scrollIntoView, and an effect
+  // that returns anything but a cleanup function crashes React when it unmounts.
+  useEffect(() => {
+    activeRow.current?.scrollIntoView({ block: "nearest" });
+  }, [active]);
   const list = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return people

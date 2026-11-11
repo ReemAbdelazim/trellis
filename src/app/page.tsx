@@ -8,7 +8,9 @@ import { PageLoader } from "@/components/ui/misc";
 /** Entry point: the app gate on /home sends signed-out visitors to /login. */
 export default function Root() {
   const router = useRouter();
-  useEffect(() => router.replace(routes.home), [router]);
+  useEffect(() => {
+    router.replace(routes.home);
+  }, [router]);
   return (
     <div className="h-dvh">
       <PageLoader />
