@@ -44,7 +44,7 @@ jobs:
       - run: npm ci
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.121.0
       - name: Start local Supabase
         run: supabase start -x vector,logflare,imgproxy,studio
       - name: Write .env.local for the test scripts
@@ -57,11 +57,18 @@ jobs:
         run: |
           cp supabase/functions/.env.test.example supabase/functions/.env.test
           supabase functions serve --env-file supabase/functions/.env.test > functions.log 2>&1 &
+          # `supabase start` already runs a functions server, which answers straight away.
+          # Wait for *this* server to take over, then for it to answer, before testing.
+          for i in $(seq 1 60); do
+            grep -q "Serving functions on" functions.log && break
+            sleep 1
+          done
           for i in $(seq 1 30); do
             code=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://127.0.0.1:54321/functions/v1/notifications || true)
-            [ "$code" = "401" ] && break
+            [ "$code" = "401" ] && exit 0
             sleep 2
           done
+          echo "Functions server did not start"; cat functions.log; exit 1
       - name: Edge Function tests
         run: npm run test:functions
       - name: Email notification tests
