@@ -24,13 +24,13 @@ import { DeleteSectionDialog, SectionMenu, SectionName, useSectionActions, type 
 import { AddTaskInput, useAddTask } from "../task-list/task-inputs";
 import { CELL, listColumns, ListRow, ListRowOverlay, NAME_CELL, ROW_GRID } from "../task-list/list-row";
 import { BulkActionsBar } from "../task-list/bulk-actions";
-import { useTaskSelection } from "../task-list/use-task-selection";
+import { useTaskSelection, type SelectGesture } from "../task-list/use-task-selection";
 import { routes } from "@/lib/routes";
 
 export function ProjectListView({ projectId }: { projectId: string }) {
   const view = useProjectTasksView(projectId);
   const { sections, tasksById, allBySection, canEdit, me } = view;
-  const { taskId: openId, openTask } = useTaskPane();
+  const { taskId: openId, openTask, closeTask } = useTaskPane();
   const { data: fields = [] } = useCustomFields(projectId);
   const { map: fieldValues } = useProjectFieldValues(projectId);
   const setField = useSetFieldValue(projectId);
@@ -56,7 +56,12 @@ export function ProjectListView({ projectId }: { projectId: string }) {
     .flatMap((s) => rowsOf(s.id))
     .filter(editable)
     .map((t) => t.id);
-  const selection = useTaskSelection(selectable);
+  const selection = useTaskSelection(selectable, openId);
+  // The task pane covers much of the list, so close it once a multi-select starts.
+  const onRowClick = (id: string, gesture: SelectGesture | null) => {
+    selection.onRowClick(id, gesture);
+    if (gesture && openId) closeTask();
+  };
   const selectedTasks = selection.selected.map((id) => tasksById.get(id)).filter((t): t is TaskItem => !!t);
 
   if (view.loading) return <PageLoader />;
@@ -188,7 +193,7 @@ export function ProjectListView({ projectId }: { projectId: string }) {
                         editable={editable(task)}
                         draggable={canEdit}
                         onOpen={openTask}
-                        onSelect={editable(task) ? selection.onRowClick : undefined}
+                        onSelect={editable(task) ? onRowClick : undefined}
                         onFieldChange={onFieldChange}
                       />
                     )}

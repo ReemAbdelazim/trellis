@@ -67,7 +67,7 @@ export function TaskNameInput({ task, className }: { task: Pick<TaskItem, "id" |
         }
       }}
       className={cn(
-        "h-7 min-w-0 flex-1 truncate rounded border border-transparent bg-transparent px-1 text-[13.5px] outline-none",
+        "h-7 min-w-0 flex-1 truncate rounded border border-transparent bg-transparent px-1 text-[13.5px] outline-none select-text",
         "hover:border-border focus:border-accent focus:bg-surface",
         task.completed && "text-faint line-through focus:no-underline",
         className,

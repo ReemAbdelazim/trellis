@@ -123,7 +123,7 @@ export function ListRow({
       }}
       className={cn(
         ROW_GRID,
-        "group min-h-9 cursor-pointer outline-none focus-visible:relative focus-visible:z-[6] focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset",
+        "group min-h-9 cursor-pointer outline-none select-none focus-visible:relative focus-visible:z-[6] focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset",
         selected && "relative z-[6] shadow-[inset_3px_0_0_var(--color-accent)]",
         isDragging && "opacity-40",
       )}

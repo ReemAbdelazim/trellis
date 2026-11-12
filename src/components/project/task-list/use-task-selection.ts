@@ -15,8 +15,9 @@ export function selectGesture(e: { shiftKey: boolean; metaKey: boolean; ctrlKey:
  * Multi-select over a list of rows in display order. `order` holds only the rows
  * that can be selected right now (visible and editable), so tasks that are
  * filtered out, collapsed or deleted drop out of the selection on their own.
+ * `openId` (the task in the pane) starts a Shift-click range when nothing else has.
  */
-export function useTaskSelection(order: string[]) {
+export function useTaskSelection(order: string[], openId: string | null = null) {
   const [picked, setPicked] = useState<ReadonlySet<string>>(() => new Set());
   const anchor = useRef<string | null>(null);
 
@@ -28,7 +29,8 @@ export function useTaskSelection(order: string[]) {
   }, []);
 
   const select = (id: string, { range }: SelectGesture) => {
-    const from = anchor.current ? order.indexOf(anchor.current) : -1;
+    const start = anchor.current ?? openId;
+    const from = start ? order.indexOf(start) : -1;
     const to = order.indexOf(id);
     if (to === -1) return;
     setPicked((prev) => {
