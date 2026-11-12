@@ -108,7 +108,7 @@ export function TaskViewToolbar({
         {children}
         <Menu>
           <MenuTrigger asChild>
-            <Button variant="ghost" size="sm" className={cn(filters > 0 && "bg-accent-soft text-accent hover:bg-accent-soft")}>
+            <Button variant="ghost" size="sm" className={cn(filters > 0 && "bg-accent-soft text-accent-ink hover:bg-accent-soft")}>
               <Filter size={14} />
               <span>Filter{filters > 0 ? `: ${filters}` : ""}</span>
             </Button>
@@ -175,7 +175,7 @@ export function TaskViewToolbar({
             <Button
               variant="ghost"
               size="sm"
-              className={cn(options.sort !== "manual" && "bg-accent-soft text-accent hover:bg-accent-soft")}
+              className={cn(options.sort !== "manual" && "bg-accent-soft text-accent-ink hover:bg-accent-soft")}
             >
               <ArrowUpDown size={14} />
               <span>{options.sort === "manual" ? "Sort" : `Sort: ${SORT_LABEL[options.sort]}`}</span>

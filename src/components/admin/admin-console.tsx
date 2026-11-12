@@ -38,7 +38,7 @@ export function AdminConsole() {
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
       <div className="mb-5 flex items-center gap-3">
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-soft text-accent">
+        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-soft text-accent-ink">
           <Shield size={18} />
         </span>
         <div>

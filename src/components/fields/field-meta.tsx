@@ -11,7 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { format } from "date-fns";
-import { cn, colorHex, toDate } from "@/lib/utils";
+import { cn, colorFill, toDate } from "@/lib/utils";
 import type { Json } from "@/types/database";
 import type { CustomField, FieldConfig, FieldOption, FieldType, Profile } from "@/types/models";
 
@@ -141,10 +141,10 @@ export function OptionPill({
   return (
     <span
       className={cn(
-        "inline-flex h-5 max-w-full min-w-0 shrink-0 items-center rounded-full px-2 text-[11px] font-medium text-white",
+        "inline-flex h-5 max-w-full min-w-0 shrink-0 items-center rounded-full px-2 text-[11px] font-medium",
         className,
       )}
-      style={{ background: colorHex(option.color) }}
+      style={colorFill(option.color)}
       title={option.name}
     >
       <span className="truncate">{option.name || "Untitled"}</span>

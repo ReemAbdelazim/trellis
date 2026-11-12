@@ -84,23 +84,48 @@ export const PALETTE = [
 ] as const;
 export type PaletteColor = (typeof PALETTE)[number];
 
+/**
+ * Muted but bright, like Asana's palette. Each is as light as it can be while
+ * white text still reads on it (3:1); the light ones (yellow, lime, orange,
+ * gray) get dark text instead — see colorFill.
+ */
 export const COLOR_HEX: Record<string, string> = {
-  teal: "#2a9d8f",
-  green: "#3f9c5a",
-  lime: "#8ab83a",
-  yellow: "#e0b522",
-  orange: "#e9853b",
-  red: "#d9534f",
-  pink: "#e26aa5",
-  purple: "#8e63ce",
-  indigo: "#5c6bc0",
-  blue: "#3a86d4",
-  slate: "#748087",
-  gray: "#9aa39d",
+  teal: "#20a598",
+  green: "#3ea36b",
+  lime: "#a3cc55",
+  yellow: "#f4c84b",
+  orange: "#ec7e4f",
+  red: "#e55a5a",
+  pink: "#e45f9f",
+  purple: "#9c6ad8",
+  indigo: "#6c74e0",
+  blue: "#3f86e0",
+  slate: "#738190",
+  gray: "#8f9893",
 };
 
 export function colorHex(color?: string | null) {
   return COLOR_HEX[color ?? ""] ?? COLOR_HEX.teal;
+}
+
+const DARK_INK = "#1e2420";
+
+function luminance(hex: string) {
+  const [r, g, b] = [1, 3, 5]
+    .map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** White where it reads on the colour (3:1, enough for icons and bold labels), dark ink otherwise. */
+const INK: Record<string, string> = Object.fromEntries(
+  Object.entries(COLOR_HEX).map(([name, hex]) => [name, 1.05 / (luminance(hex) + 0.05) >= 3 ? "#ffffff" : DARK_INK]),
+);
+
+/** Style for a palette-coloured tile, pill or avatar: the colour plus text that stays readable on it. */
+export function colorFill(color?: string | null): { background: string; color: string } {
+  const name = color && COLOR_HEX[color] ? color : "teal";
+  return { background: COLOR_HEX[name], color: INK[name] };
 }
 
 /** Stable palette colour for a string (a user id, a tag name…). */
@@ -110,10 +135,6 @@ export function paletteColorFor(seed: string): PaletteColor {
   return PALETTE[Math.abs(h) % PALETTE.length];
 }
 
-/** Stable colour (hex) for a user id / string. */
-export function hashColor(seed: string) {
-  return COLOR_HEX[paletteColorFor(seed)];
-}
 
 export function toDate(value: string | Date | null | undefined): Date | null {
   if (!value) return null;

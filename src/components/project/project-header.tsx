@@ -36,7 +36,7 @@ import { AvatarStack } from "@/components/ui/avatar";
 import { ConfirmDialog, InlineEdit, StatusPill } from "@/components/ui/misc";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
 import { Tooltip } from "@/components/ui/tooltip";
-import { cn, colorHex, errorMessage } from "@/lib/utils";
+import { cn, colorFill, errorMessage } from "@/lib/utils";
 import { PROJECT_VIEWS, type ProjectViewId } from "./views-config";
 import { ShareProjectDialog } from "./share-project-dialog";
 import { EditProjectDialog } from "./edit-project-dialog";
@@ -94,8 +94,8 @@ export function ProjectHeader({ projectId, view }: { projectId: string; view: Pr
     <header className="border-b border-border bg-surface">
       <div className="flex items-center gap-3 px-4 pt-3 sm:px-6">
         <span
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white"
-          style={{ background: colorHex(project.color) }}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold"
+          style={colorFill(project.color)}
         >
           {project.name.slice(0, 1).toUpperCase()}
         </span>

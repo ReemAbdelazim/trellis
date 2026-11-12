@@ -34,7 +34,7 @@ export function RichText({ text, className }: { text: string; className?: string
     if (start > last) nodes.push(<Linkified key={`t${last}`} text={text.slice(last, start)} />);
     const person = people.get(m[2]);
     nodes.push(
-      <span key={`m${start}`} className="rounded bg-accent-soft px-1 font-medium text-accent">
+      <span key={`m${start}`} className="rounded bg-accent-soft px-1 font-medium text-accent-ink">
         @{person?.full_name ?? m[1]}
       </span>,
     );

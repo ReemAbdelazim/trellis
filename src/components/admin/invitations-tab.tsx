@@ -19,7 +19,7 @@ import { errorMessage, timeAgo } from "@/lib/utils";
 import type { Invitation, UserRole } from "@/types/models";
 
 const ROLE_CLASS: Record<UserRole, string> = {
-  admin: "bg-accent-soft text-accent",
+  admin: "bg-accent-soft text-accent-ink",
   member: "bg-info-soft text-info",
   guest: "bg-surface-3 text-muted",
 };

@@ -161,7 +161,7 @@ function UnsectionedGroup({ showDropZone, children }: { showDropZone: boolean; c
         <div
           className={cn(
             "flex h-9 items-center justify-center rounded-md border border-dashed text-[12px] text-faint",
-            isOver ? "border-accent bg-accent-soft text-accent" : "border-border",
+            isOver ? "border-accent bg-accent-soft text-accent-ink" : "border-border",
           )}
         >
           Drop here to remove from its section

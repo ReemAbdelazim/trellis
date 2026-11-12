@@ -11,7 +11,7 @@ import { AvatarStack } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState, PageLoader } from "@/components/ui/misc";
-import { colorHex, errorMessage } from "@/lib/utils";
+import { colorFill, errorMessage } from "@/lib/utils";
 import { CreateTeamDialog } from "./create-team-dialog";
 import type { Team } from "@/types/models";
 import { routes } from "@/lib/routes";
@@ -64,8 +64,8 @@ export function TeamsDirectory() {
       <div key={team.id} className="flex flex-col rounded-xl border border-border bg-surface p-4 hover:border-border-strong">
         <div className="flex items-start gap-3">
           <span
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white"
-            style={{ background: colorHex(team.color) }}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+            style={colorFill(team.color)}
           >
             <Users size={18} />
           </span>

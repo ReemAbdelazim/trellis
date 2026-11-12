@@ -1,7 +1,7 @@
 "use client";
 
 import { User } from "lucide-react";
-import { cn, hashColor, initials } from "@/lib/utils";
+import { cn, colorFill, initials, paletteColorFor } from "@/lib/utils";
 import { Tooltip } from "./tooltip";
 import type { Profile } from "@/types/models";
 
@@ -45,11 +45,11 @@ export function Avatar({
   ) : (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-full font-semibold text-white",
+        "inline-flex shrink-0 items-center justify-center rounded-full font-semibold",
         SIZES[size],
         className,
       )}
-      style={{ background: hashColor(profile.id) }}
+      style={colorFill(paletteColorFor(profile.id))}
     >
       {initials(profile.full_name, profile.email)}
     </span>

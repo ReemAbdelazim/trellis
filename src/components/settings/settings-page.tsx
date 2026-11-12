@@ -144,7 +144,7 @@ function ProfileCard({ profile }: { profile: Profile }) {
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
             <div className="flex items-center gap-2 text-xs text-muted">
-              <Pill className="bg-accent-soft text-accent capitalize">{profile.role}</Pill>
+              <Pill className="bg-accent-soft text-accent-ink capitalize">{profile.role}</Pill>
               <span>{ROLE_HINT[profile.role]}</span>
             </div>
             <Button type="submit" variant="primary" disabled={!dirty || !fullName || update.isPending}>

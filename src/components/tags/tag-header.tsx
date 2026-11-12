@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ColorSwatches, ConfirmDialog, InlineEdit } from "@/components/ui/misc";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip } from "@/components/ui/tooltip";
-import { colorHex } from "@/lib/utils";
+import { colorFill } from "@/lib/utils";
 import type { Tag } from "@/types/models";
 
 /**
@@ -24,7 +24,7 @@ export function TagHeader({ tag, onDeleted }: { tag: Tag; onDeleted: () => void 
   const canDelete = canEdit && (me.role === "admin" || tag.created_by === me.id);
 
   const swatch = (
-    <span className="flex h-7 w-7 items-center justify-center rounded-md text-white" style={{ background: colorHex(tag.color) }}>
+    <span className="flex h-7 w-7 items-center justify-center rounded-md" style={colorFill(tag.color)}>
       <TagIcon size={14} />
     </span>
   );

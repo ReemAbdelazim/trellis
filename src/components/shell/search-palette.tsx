@@ -12,7 +12,7 @@ import { useDebounced, useGoalSearch, useTaskNameSearch } from "@/lib/queries/se
 import { useTaskPane } from "@/lib/task-pane";
 import { Avatar } from "@/components/ui/avatar";
 import { Kbd, Spinner, StatusPill } from "@/components/ui/misc";
-import { cn, colorHex, DUE_TONE_CLASS, dueTone, formatDue } from "@/lib/utils";
+import { cn, colorFill, colorHex, DUE_TONE_CLASS, dueTone, formatDue } from "@/lib/utils";
 import { routes } from "@/lib/routes";
 
 /** Global Ctrl/Cmd+K command palette (mounted by the app shell). */
@@ -245,7 +245,7 @@ function Palette({ onClose }: { onClose: () => void }) {
 
 function ProjectIcon({ color }: { color: string }) {
   return (
-    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-white" style={{ background: colorHex(color) }}>
+    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded" style={colorFill(color)}>
       <LayoutGrid size={12} />
     </span>
   );

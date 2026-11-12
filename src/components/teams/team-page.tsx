@@ -36,7 +36,7 @@ import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/compo
 import { ColorDot, ColorSwatches, ConfirmDialog, EmptyState, InlineEdit, PageLoader, Pill, ProgressBar, StatusPill } from "@/components/ui/misc";
 import { Dialog } from "@/components/ui/dialog";
 import { UserPicker } from "@/components/ui/user-picker";
-import { colorHex, errorMessage, formatDue } from "@/lib/utils";
+import { colorFill, errorMessage, formatDue } from "@/lib/utils";
 import { routes } from "@/lib/routes";
 
 export function TeamPage({ teamId }: { teamId: string }) {
@@ -114,8 +114,8 @@ export function TeamPage({ teamId }: { teamId: string }) {
       {/* Header */}
       <div className="flex flex-wrap items-start gap-3">
         <span
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-white"
-          style={{ background: colorHex(team.color) }}
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl"
+          style={colorFill(team.color)}
         >
           <Users size={22} />
         </span>
@@ -306,7 +306,7 @@ export function TeamPage({ teamId }: { teamId: string }) {
                     </div>
                     <div className="truncate text-xs text-muted">{m.profile?.title || m.profile?.email}</div>
                   </div>
-                  {m.is_admin && <Pill className="bg-accent-soft text-accent">Team admin</Pill>}
+                  {m.is_admin && <Pill className="bg-accent-soft text-accent-ink">Team admin</Pill>}
                   {isTeamAdmin && (
                     <Menu>
                       <MenuTrigger asChild>

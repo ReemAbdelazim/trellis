@@ -8,7 +8,7 @@ import { useFavorites, useProjects, useProjectStats } from "@/lib/queries/projec
 import { useMyProjectIds } from "@/lib/queries/home";
 import { CreateProjectDialog } from "@/components/project/create-project-dialog";
 import { EmptyState, ProgressBar, Spinner } from "@/components/ui/misc";
-import { colorHex } from "@/lib/utils";
+import { colorFill } from "@/lib/utils";
 import { HomeCard } from "./card";
 import { routes } from "@/lib/routes";
 
@@ -74,8 +74,8 @@ export function HomeProjectsCard() {
                 className="flex min-w-0 items-center gap-3 rounded-lg border border-border p-3 hover:border-border-strong hover:bg-surface-2/50"
               >
                 <span
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white"
-                  style={{ background: colorHex(p.color) }}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                  style={colorFill(p.color)}
                 >
                   <LayoutGrid size={18} />
                 </span>

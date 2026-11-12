@@ -15,7 +15,7 @@ import { useIsGuest, useMe } from "@/lib/queries/me";
 import { useProfileMap } from "@/lib/queries/people";
 import { useProjectStats } from "@/lib/queries/projects";
 import { aggregateProgress, useCreatePortfolio, usePortfolios, type PortfolioItem } from "@/lib/queries/portfolios";
-import { cn, colorHex, errorMessage } from "@/lib/utils";
+import { cn, colorFill, errorMessage } from "@/lib/utils";
 import { routes } from "@/lib/routes";
 
 export function PortfoliosView() {
@@ -102,8 +102,8 @@ function PortfolioCard({ portfolio }: { portfolio: PortfolioItem }) {
     >
       <div className="flex items-start gap-3">
         <span
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white"
-          style={{ background: colorHex(portfolio.color) }}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md"
+          style={colorFill(portfolio.color)}
         >
           <Briefcase size={17} />
         </span>

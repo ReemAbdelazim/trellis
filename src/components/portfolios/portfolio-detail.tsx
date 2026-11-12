@@ -49,7 +49,7 @@ import {
   useUpdatePortfolio,
   type PortfolioItem,
 } from "@/lib/queries/portfolios";
-import { cn, colorHex, DUE_TONE_CLASS, dueTone, errorMessage, formatDue, nextPosition, positionBetween, timeAgo } from "@/lib/utils";
+import { cn, colorFill, DUE_TONE_CLASS, dueTone, errorMessage, formatDue, nextPosition, positionBetween, timeAgo } from "@/lib/utils";
 import type { Project, ProjectStats, StatusColor } from "@/types/models";
 import { ProjectPicker } from "./project-picker";
 import { PrivacyToggle } from "./portfolios-view";
@@ -201,8 +201,8 @@ function PortfolioIcon({
 }) {
   const icon = (
     <span
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white"
-      style={{ background: colorHex(portfolio.color) }}
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+      style={colorFill(portfolio.color)}
     >
       <Briefcase size={19} />
     </span>
