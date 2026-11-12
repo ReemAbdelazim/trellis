@@ -169,8 +169,10 @@ function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () => void }
 
       <div className="flex-1 overflow-y-auto scrollbar-thin">
         <div className="space-y-6 px-6 py-5">
-          {task.parent_id && <ParentCrumb parentId={task.parent_id} onOpen={openTask} />}
-          <TaskName task={task} disabled={!canEdit} />
+          <div>
+            {task.parent_id && <ParentCrumb parentId={task.parent_id} onOpen={openTask} />}
+            <TaskName task={task} disabled={!canEdit} />
+          </div>
 
           <dl className="grid grid-cols-[110px_1fr] items-center gap-x-3 gap-y-2.5 text-[13px]">
             <dt className="text-muted">Assignee</dt>
@@ -249,8 +251,16 @@ function ParentCrumb({ parentId, onOpen }: { parentId: string; onOpen: (id: stri
   const { data: parent } = useTask(parentId);
   if (!parent) return null;
   return (
-    <button onClick={() => onOpen(parent.id)} className="-mb-3 flex items-center gap-1 text-xs text-muted hover:text-text">
-      {parent.name || "Untitled task"} <ChevronRight size={12} />
+    <button
+      type="button"
+      onClick={() => onOpen(parent.id)}
+      title={parent.name || "Untitled task"}
+      aria-label={`Open parent task: ${parent.name || "Untitled task"}`}
+      // pl-px lines the text up with the title, whose box has a 1px border.
+      className="mb-1 flex max-w-full pl-px items-center gap-1 text-left text-xs text-muted hover:text-text"
+    >
+      <span className="min-w-0 truncate">{parent.name || "Untitled task"}</span>
+      <ChevronRight size={12} className="shrink-0" />
     </button>
   );
 }
