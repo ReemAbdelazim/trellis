@@ -128,11 +128,6 @@ export function ProjectListView({ projectId }: { projectId: string }) {
   const { template, rest } = listColumns(fields.length);
   const nothingVisible = view.tasks.length > 0 && view.visibleCount === 0;
 
-  const open = (id: string) => {
-    selection.startAt(id);
-    openTask(id);
-  };
-
   return (
     <div className="relative flex h-full min-h-0 flex-col">
       {toolbar}
@@ -192,8 +187,8 @@ export function ProjectListView({ projectId }: { projectId: string }) {
                         selected={selection.isSelected(task.id)}
                         editable={editable(task)}
                         draggable={canEdit}
-                        onOpen={open}
-                        onSelect={editable(task) ? selection.select : undefined}
+                        onOpen={openTask}
+                        onSelect={editable(task) ? selection.onRowClick : undefined}
                         onFieldChange={onFieldChange}
                       />
                     )}

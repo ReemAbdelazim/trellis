@@ -27,12 +27,6 @@ export function useTaskSelection(order: string[]) {
     setPicked(new Set());
   }, []);
 
-  /** A plain click: drop the selection, but let a following Shift-click range start here. */
-  const startAt = (id: string) => {
-    clear();
-    anchor.current = id;
-  };
-
   const select = (id: string, { range }: SelectGesture) => {
     const from = anchor.current ? order.indexOf(anchor.current) : -1;
     const to = order.indexOf(id);
@@ -52,6 +46,13 @@ export function useTaskSelection(order: string[]) {
     if (!range || from === -1) anchor.current = id;
   };
 
+  /** Shift/Ctrl/Cmd-clicks select; a plain click drops the selection and starts the next range there. */
+  const onRowClick = (id: string, gesture: SelectGesture | null) => {
+    if (gesture) return select(id, gesture);
+    if (picked.size) setPicked(new Set());
+    anchor.current = id;
+  };
+
   const active = selected.length > 0;
   useEffect(() => {
     if (!active) return;
@@ -62,5 +63,5 @@ export function useTaskSelection(order: string[]) {
     return () => window.removeEventListener("keydown", onKey);
   }, [active, clear]);
 
-  return { selected, isSelected: (id: string) => picked.has(id), select, clear, startAt };
+  return { selected, isSelected: (id: string) => picked.has(id), onRowClick, clear };
 }

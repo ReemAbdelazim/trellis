@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { useMe } from "@/lib/queries/me";
 import { newId, useCreateTask, useUpdateTask, type TaskItem } from "@/lib/queries/tasks";
 import { cn, nextPosition } from "@/lib/utils";
-import { selectGesture } from "./use-task-selection";
 
 /** Create a task at the end of a section (positions ignore filters). */
 export function useAddTask(projectId: string, allBySection: Map<string, TaskItem[]>) {
@@ -54,10 +53,7 @@ export function TaskNameInput({ task, className }: { task: Pick<TaskItem, "id" |
         setFocused(false);
         commit();
       }}
-      // Plain clicks edit the name; Shift/Ctrl/Cmd-clicks reach the row to select it.
-      onClick={(e) => {
-        if (!selectGesture(e)) e.stopPropagation();
-      }}
+      onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
         e.stopPropagation();
         if (e.key === "Enter") {
