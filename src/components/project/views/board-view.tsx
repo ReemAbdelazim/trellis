@@ -19,10 +19,12 @@ import { DeleteSectionDialog, useSectionActions } from "@/components/sections/se
 import { useAddTask } from "../task-list/task-inputs";
 import { BoardCard, BoardCardOverlay } from "../board/board-card";
 import { BoardColumn, COLUMN_WIDTH } from "../board/board-column";
+import { TaskSelectionScope } from "@/components/task/bulk-actions";
+import { useTaskSelection } from "@/components/task/task-selection";
 
 export function ProjectBoardView({ projectId }: { projectId: string }) {
   const view = useProjectTasksView(projectId);
-  const { sections, tasksById, allBySection, canEdit, me } = view;
+  const { sections, tasksById, allBySection, canEdit, canEditTask } = view;
   const { taskId: openId, openTask } = useTaskPane();
   const { data: fields = [] } = useCustomFields(projectId);
   const { map: fieldValues } = useProjectFieldValues(projectId);
@@ -33,10 +35,19 @@ export function ProjectBoardView({ projectId }: { projectId: string }) {
   // Bumping `n` opens that column's composer.
   const [compose, setCompose] = useState<{ sectionId: string; n: number } | null>(null);
 
-  if (view.loading) return <PageLoader />;
-
   const byId = new Map(sections.map((s) => [s.id, s]));
   const ordered = dnd.order.map((id) => byId.get(id)).filter((s): s is Section => !!s);
+  const cardsOf = (sectionId: string) =>
+    (dnd.items[sectionId] ?? []).map((id) => tasksById.get(id)).filter((t): t is TaskItem => !!t);
+  // Selectable cards in reading order: column by column, top to bottom.
+  const selection = useTaskSelection(
+    ordered
+      .flatMap((s) => cardsOf(s.id))
+      .filter(canEditTask)
+      .map((t) => t.id),
+  );
+
+  if (view.loading) return <PageLoader />;
   const selectFields = fields.filter((f) => f.type === "single_select");
 
   const toolbar = (
@@ -79,91 +90,93 @@ export function ProjectBoardView({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      {toolbar}
-      {view.tasks.length > 0 && view.visibleCount === 0 && (
-        <div className="px-4 pt-3 text-[13px] text-muted sm:px-6">
-          No tasks match {view.search.trim() ? "your search" : "these filters"}.{" "}
-          <button
-            type="button"
-            className="font-medium text-accent hover:underline"
-            onClick={() => {
-              view.setSearch("");
-              view.setOptions({ status: "all", ...NO_FILTERS });
-            }}
-          >
-            Show all tasks
-          </button>
-        </div>
-      )}
-      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden scrollbar-thin">
-        <div className="flex h-full w-max items-start gap-3 px-4 py-3 sm:px-6">
-          <DndContext {...dnd.context}>
-            <SortableContext items={ordered.map((s) => sectionDndId(s.id))} strategy={horizontalListSortingStrategy}>
-              {ordered.map((section) => {
-                const ids = dnd.items[section.id] ?? [];
-                return (
-                  <BoardColumn
-                    key={section.id}
-                    section={section}
-                    tasks={ids.map((id) => tasksById.get(id)).filter((t): t is TaskItem => !!t)}
-                    total={ids.length}
-                    canEdit={canEdit}
-                    actions={actions}
-                    sectionCount={ordered.length}
-                    composeSignal={compose?.sectionId === section.id ? compose.n : 0}
-                    onCreate={(name) => addTask(section.id, name)}
-                  >
-                    {(task) => (
-                      <BoardCard
-                        key={task.id}
-                        task={task}
-                        fields={selectFields}
-                        values={fieldValues.get(task.id)}
-                        selected={openId === task.id}
-                        editable={canEdit || task.assignee_id === me.id || task.created_by === me.id}
-                        draggable={canEdit}
-                        onOpen={openTask}
-                      />
-                    )}
-                  </BoardColumn>
-                );
-              })}
-            </SortableContext>
-            <DragOverlay>
-              {dnd.activeTask ? (
-                <BoardCardOverlay task={dnd.activeTask} fields={selectFields} values={fieldValues.get(dnd.activeTask.id)} />
-              ) : dnd.activeSection ? (
-                <div
-                  className={cn(
-                    "flex h-11 items-center rounded-xl bg-surface-2 px-3 text-[14px] font-semibold shadow-pop",
-                    COLUMN_WIDTH,
-                  )}
-                >
-                  <span className="truncate">{dnd.activeSection.name || "Untitled section"}</span>
-                  <span className="ml-auto pl-2 text-[12px] font-normal text-faint tabular-nums">
-                    {dnd.items[dnd.activeSection.id]?.length ?? 0}
-                  </span>
-                </div>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
-          {canEdit && (
+    <div className="relative flex h-full min-h-0 flex-col">
+      <TaskSelectionScope selection={selection} tasksById={tasksById}>
+        {toolbar}
+        {view.tasks.length > 0 && view.visibleCount === 0 && (
+          <div className="px-4 pt-3 text-[13px] text-muted sm:px-6">
+            No tasks match {view.search.trim() ? "your search" : "these filters"}.{" "}
             <button
               type="button"
-              onClick={() => actions.add()}
-              disabled={actions.adding}
-              className={cn(
-                "flex h-11 shrink-0 items-center gap-1.5 rounded-xl border border-dashed border-border-strong px-3 text-[13.5px] text-muted hover:bg-surface-2 hover:text-text disabled:opacity-60",
-                COLUMN_WIDTH,
-              )}
+              className="font-medium text-accent hover:underline"
+              onClick={() => {
+                view.setSearch("");
+                view.setOptions({ status: "all", ...NO_FILTERS });
+              }}
             >
-              <Plus size={15} /> Add section
+              Show all tasks
             </button>
-          )}
+          </div>
+        )}
+        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden scrollbar-thin">
+          <div className="flex h-full w-max items-start gap-3 px-4 py-3 sm:px-6">
+            <DndContext {...dnd.context}>
+              <SortableContext items={ordered.map((s) => sectionDndId(s.id))} strategy={horizontalListSortingStrategy}>
+                {ordered.map((section) => {
+                  const tasks = cardsOf(section.id);
+                  return (
+                    <BoardColumn
+                      key={section.id}
+                      section={section}
+                      tasks={tasks}
+                      total={tasks.length}
+                      canEdit={canEdit}
+                      actions={actions}
+                      sectionCount={ordered.length}
+                      composeSignal={compose?.sectionId === section.id ? compose.n : 0}
+                      onCreate={(name) => addTask(section.id, name)}
+                    >
+                      {(task) => (
+                        <BoardCard
+                          key={task.id}
+                          task={task}
+                          fields={selectFields}
+                          values={fieldValues.get(task.id)}
+                          open={openId === task.id}
+                          editable={canEditTask(task)}
+                          draggable={canEdit}
+                          onOpen={openTask}
+                        />
+                      )}
+                    </BoardColumn>
+                  );
+                })}
+              </SortableContext>
+              <DragOverlay>
+                {dnd.activeTask ? (
+                  <BoardCardOverlay task={dnd.activeTask} fields={selectFields} values={fieldValues.get(dnd.activeTask.id)} />
+                ) : dnd.activeSection ? (
+                  <div
+                    className={cn(
+                      "flex h-11 items-center rounded-xl bg-surface-2 px-3 text-[14px] font-semibold shadow-pop",
+                      COLUMN_WIDTH,
+                    )}
+                  >
+                    <span className="truncate">{dnd.activeSection.name || "Untitled section"}</span>
+                    <span className="ml-auto pl-2 text-[12px] font-normal text-faint tabular-nums">
+                      {dnd.items[dnd.activeSection.id]?.length ?? 0}
+                    </span>
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => actions.add()}
+                disabled={actions.adding}
+                className={cn(
+                  "flex h-11 shrink-0 items-center gap-1.5 rounded-xl border border-dashed border-border-strong px-3 text-[13.5px] text-muted hover:bg-surface-2 hover:text-text disabled:opacity-60",
+                  COLUMN_WIDTH,
+                )}
+              >
+                <Plus size={15} /> Add section
+              </button>
+            )}
+          </div>
         </div>
-      </div>
-      <DeleteSectionDialog actions={actions} sections={ordered} taskCount={(id) => allBySection.get(id)?.length ?? 0} />
+        <DeleteSectionDialog actions={actions} sections={ordered} taskCount={(id) => allBySection.get(id)?.length ?? 0} />
+      </TaskSelectionScope>
     </div>
   );
 }

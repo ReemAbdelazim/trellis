@@ -12,7 +12,7 @@ import type { CustomField } from "@/types/models";
 import { TaskNameInput } from "./task-inputs";
 import { TagChips } from "@/components/tags/tag-chip";
 import { guardDragListeners, taskDndId } from "@/components/sections/use-section-dnd";
-import { selectGesture, type SelectGesture } from "./use-task-selection";
+import { useSelectableTask } from "@/components/task/task-selection";
 
 /** Grid template shared by the header, rows and add rows (set as --cols on the table). */
 export function listColumns(fieldCount: number) {
@@ -53,11 +53,9 @@ export function ListRow({
   fields,
   values,
   open,
-  selected,
   editable,
   draggable,
   onOpen,
-  onSelect,
   onFieldChange,
 }: {
   task: TaskItem;
@@ -65,35 +63,18 @@ export function ListRow({
   values: Map<string, Json | null> | undefined;
   /** Shown in the task pane. */
   open: boolean;
-  /** Part of a multi-selection (Shift/Ctrl/Cmd-click). */
-  selected: boolean;
-  /** Can change this task (project editor, creator or assignee). */
+  /** Can change this task (project editor, creator or assignee); only these can be multi-selected. */
   editable: boolean;
   draggable: boolean;
   onOpen: (id: string) => void;
-  /**
-   * Present when the row can be multi-selected. Called for every click on the row:
-   * with a gesture for Shift/Ctrl/Cmd-clicks, with null for plain clicks (which
-   * clear the selection and become the start of the next Shift-click range).
-   */
-  onSelect?: (id: string, gesture: SelectGesture | null) => void;
   onFieldChange: (taskId: string, fieldId: string, value: Json | null) => void;
 }) {
   const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({
     id: taskDndId(task.id),
     disabled: !draggable,
   });
+  const { selected, handlers } = useSelectableTask(task.id, editable);
   const bg = selected || open ? "bg-accent-soft" : "bg-surface group-hover:bg-surface-2";
-
-  // Modifier presses are caught before anything inside the row sees them, so a
-  // Shift/Ctrl/Cmd-click anywhere on the row selects it: it never ticks the checkbox,
-  // opens a picker, starts a drag, focuses the name or selects page text.
-  const claimModifierPress = (e: React.PointerEvent | React.MouseEvent) => {
-    if (onSelect && selectGesture(e)) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  };
 
   return (
     <div
@@ -102,18 +83,7 @@ export function ListRow({
       tabIndex={0}
       aria-label={task.name || "Untitled task"}
       aria-current={open || undefined}
-      aria-selected={onSelect ? selected : undefined}
-      onPointerDownCapture={claimModifierPress}
-      onMouseDownCapture={claimModifierPress}
-      onClickCapture={(e) => {
-        if (!onSelect) return;
-        const gesture = selectGesture(e);
-        onSelect(task.id, gesture);
-        if (gesture) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-      }}
+      {...handlers}
       onClick={() => onOpen(task.id)}
       onKeyDown={(e) => {
         if (e.key === "Enter" && e.target === e.currentTarget) {

@@ -5,7 +5,7 @@ import { useMe } from "@/lib/queries/me";
 import { useProfileMap } from "@/lib/queries/people";
 import { useCanEditProject } from "@/lib/queries/projects";
 import { sectionsFilter, sectionsKey, useSections } from "@/lib/queries/sections";
-import { useProjectTasks } from "@/lib/queries/tasks";
+import { useProjectTasks, type TaskItem } from "@/lib/queries/tasks";
 import { useRealtime } from "@/lib/queries/realtime";
 import { qk } from "@/lib/queries/keys";
 import { groupTasks, tasksBySection, useViewOptions } from "./view-options";
@@ -52,10 +52,13 @@ export function useProjectTasksView(projectId: string) {
   const tagIds = useMemo(() => [...new Set(tasks.flatMap((t) => t.tag_ids))], [tasks]);
 
   const visibleCount = Object.values(groups).reduce((n, ids) => n + ids.length, 0);
+  /** Project editors can change any task; others only ones they created or are assigned. */
+  const canEditTask = (t: TaskItem) => canEdit || t.assignee_id === me.id || t.created_by === me.id;
 
   return {
     me,
     canEdit,
+    canEditTask,
     loading: sectionsQ.isLoading || tasksQ.isLoading,
     sections,
     tasks,

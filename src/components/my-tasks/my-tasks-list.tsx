@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils";
 import { BUCKET_DROP_PREFIX, BUCKETS, computeMove, type Bucket, type SortMode } from "./buckets";
 import { bucketCollision, useDragSensors } from "./dnd";
 import { ParentHint, ProjectChip } from "./task-meta";
+import { TaskSelectionScope } from "@/components/task/bulk-actions";
+import { useSelectableTask, useTaskSelection } from "@/components/task/task-selection";
 import type { Project } from "@/types/models";
 
 const GRID = "grid grid-cols-[minmax(0,1fr)_92px] sm:grid-cols-[minmax(0,1fr)_120px_200px]";
@@ -45,7 +47,12 @@ export function MyTasksList({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Set<Bucket>>(new Set());
 
-  const active = activeId ? [...groups.values()].flat().find((t) => t.id === activeId) : undefined;
+  const tasksById = new Map([...groups.values()].flat().map((t) => [t.id, t]));
+  const active = activeId ? tasksById.get(activeId) : undefined;
+  // Your own tasks are always editable, so every visible row can be selected.
+  const selection = useTaskSelection(
+    BUCKETS.filter((b) => !collapsed.has(b.id)).flatMap((b) => (groups.get(b.id) ?? []).map((t) => t.id)),
+  );
 
   const onDragStart = (e: DragStartEvent) => setActiveId(String(e.active.id));
   const onDragEnd = (e: DragEndEvent) => {
@@ -64,63 +71,65 @@ export function MyTasksList({
     });
 
   return (
-    <div className="min-w-0">
-      <div className={cn(GRID, "sticky top-0 z-10 border-y border-border bg-surface text-xs font-medium text-faint")}>
-        <div className="py-2 pl-9">Task name</div>
-        <div className="border-l border-border px-2 py-2">Due date</div>
-        <div className="hidden border-l border-border px-2 py-2 sm:block">Project</div>
+    <TaskSelectionScope selection={selection} tasksById={tasksById}>
+      <div className="min-w-0">
+        <div className={cn(GRID, "sticky top-0 z-10 border-y border-border bg-surface text-xs font-medium text-faint")}>
+          <div className="py-2 pl-9">Task name</div>
+          <div className="border-l border-border px-2 py-2">Due date</div>
+          <div className="hidden border-l border-border px-2 py-2 sm:block">Project</div>
+        </div>
+        <DndContext
+          id={dndId}
+          sensors={sensors}
+          collisionDetection={bucketCollision}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          onDragCancel={() => setActiveId(null)}
+        >
+          {BUCKETS.map((b) => {
+            const list = groups.get(b.id) ?? [];
+            const isCollapsed = collapsed.has(b.id);
+            return (
+              <section key={b.id} className="pb-2">
+                <button
+                  type="button"
+                  onClick={() => toggle(b.id)}
+                  className="flex h-10 w-full items-center gap-1.5 px-2 text-left text-[14px] font-semibold hover:bg-surface-2/60"
+                  aria-expanded={!isCollapsed}
+                >
+                  <ChevronDown size={15} className={cn("text-muted transition-transform", isCollapsed && "-rotate-90")} />
+                  {b.label}
+                  <span className="text-xs font-normal text-faint">{list.length}</span>
+                </button>
+                {!isCollapsed && (
+                  <BucketDrop bucket={b.id}>
+                    {showAdd && b.id === "recently_assigned" && <InlineAdd />}
+                    <SortableContext items={list.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+                      {list.map((t) => (
+                        <SortableRow key={t.id} task={t} ctx={ctx} />
+                      ))}
+                    </SortableContext>
+                    {!list.length && (
+                      <div className="border-b border-border py-2.5 pl-9 text-[13px] text-faint">
+                        {activeId ? "Drop here" : "Nothing here"}
+                      </div>
+                    )}
+                  </BucketDrop>
+                )}
+              </section>
+            );
+          })}
+          <DragOverlay dropAnimation={null}>
+            {active ? (
+              <div className="flex h-10 max-w-md items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm shadow-pop">
+                <TaskCheckbox task={active} disabled />
+                <span className="truncate">{active.name || "Untitled task"}</span>
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </div>
-      <DndContext
-        id={dndId}
-        sensors={sensors}
-        collisionDetection={bucketCollision}
-        onDragStart={onDragStart}
-        onDragEnd={onDragEnd}
-        onDragCancel={() => setActiveId(null)}
-      >
-        {BUCKETS.map((b) => {
-          const list = groups.get(b.id) ?? [];
-          const isCollapsed = collapsed.has(b.id);
-          return (
-            <section key={b.id} className="pb-2">
-              <button
-                type="button"
-                onClick={() => toggle(b.id)}
-                className="flex h-10 w-full items-center gap-1.5 px-2 text-left text-[14px] font-semibold hover:bg-surface-2/60"
-                aria-expanded={!isCollapsed}
-              >
-                <ChevronDown size={15} className={cn("text-muted transition-transform", isCollapsed && "-rotate-90")} />
-                {b.label}
-                <span className="text-xs font-normal text-faint">{list.length}</span>
-              </button>
-              {!isCollapsed && (
-                <BucketDrop bucket={b.id}>
-                  {showAdd && b.id === "recently_assigned" && <InlineAdd />}
-                  <SortableContext items={list.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-                    {list.map((t) => (
-                      <SortableRow key={t.id} task={t} ctx={ctx} />
-                    ))}
-                  </SortableContext>
-                  {!list.length && (
-                    <div className="border-b border-border py-2.5 pl-9 text-[13px] text-faint">
-                      {activeId ? "Drop here" : "Nothing here"}
-                    </div>
-                  )}
-                </BucketDrop>
-              )}
-            </section>
-          );
-        })}
-        <DragOverlay dropAnimation={null}>
-          {active ? (
-            <div className="flex h-10 max-w-md items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm shadow-pop">
-              <TaskCheckbox task={active} disabled />
-              <span className="truncate">{active.name || "Untitled task"}</span>
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
-    </div>
+    </TaskSelectionScope>
   );
 }
 
@@ -139,17 +148,20 @@ function SortableRow({ task, ctx }: { task: TaskItem; ctx: TaskListContext }) {
   const project = task.project_id ? ctx.projects.get(task.project_id) : undefined;
   const parentName = task.parent_id ? ctx.parentNames.get(task.parent_id) : undefined;
   const open = taskId === task.id;
+  const { selected, handlers } = useSelectableTask(task.id);
 
   return (
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
       {...listeners}
+      {...handlers}
       onClick={() => openTask(task.id)}
       className={cn(
         GRID,
-        "group h-10 cursor-pointer border-b border-border bg-surface text-[13.5px] hover:bg-surface-2/70",
+        "group h-10 cursor-pointer border-b border-border bg-surface text-[13.5px] select-none hover:bg-surface-2/70",
         open && "bg-accent-soft/60 hover:bg-accent-soft/60",
+        selected && "bg-accent-soft shadow-[inset_3px_0_0_var(--color-accent)] hover:bg-accent-soft",
         isDragging && "opacity-40",
       )}
     >

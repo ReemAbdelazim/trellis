@@ -7,9 +7,32 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/misc";
 import { UserPicker } from "@/components/ui/user-picker";
 import { TagPicker } from "@/components/tags/task-tags";
+import { TaskSelectionContext, type TaskSelection } from "./task-selection";
+
+/**
+ * Makes the tasks inside selectable (see useSelectableTask) and shows the bulk
+ * actions bar while any are selected. Put it inside a `relative` container.
+ */
+export function TaskSelectionScope({
+  selection,
+  tasksById,
+  children,
+}: {
+  selection: TaskSelection;
+  tasksById: ReadonlyMap<string, TaskItem>;
+  children: React.ReactNode;
+}) {
+  const tasks = selection.selected.map((id) => tasksById.get(id)).filter((t): t is TaskItem => !!t);
+  return (
+    <TaskSelectionContext.Provider value={selection}>
+      {children}
+      {tasks.length > 0 && <BulkActionsBar tasks={tasks} onClear={selection.clear} />}
+    </TaskSelectionContext.Provider>
+  );
+}
 
 /** Floating bar for the selected tasks: reassign, tag or delete them together. */
-export function BulkActionsBar({ tasks, onClear }: { tasks: TaskItem[]; onClear: () => void }) {
+function BulkActionsBar({ tasks, onClear }: { tasks: TaskItem[]; onClear: () => void }) {
   const update = useUpdateTasks();
   const del = useDeleteTasks();
   const [confirming, setConfirming] = useState(false);

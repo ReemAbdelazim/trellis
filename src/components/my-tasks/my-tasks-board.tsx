@@ -19,6 +19,8 @@ import { BUCKET_DROP_PREFIX, BUCKETS, computeMove, type Bucket, type SortMode } 
 import { bucketCollision, useDragSensors } from "./dnd";
 import { ParentHint, ProjectChip } from "./task-meta";
 import type { TaskListContext } from "./my-tasks-list";
+import { TaskSelectionScope } from "@/components/task/bulk-actions";
+import { useSelectableTask, useTaskSelection } from "@/components/task/task-selection";
 
 export function MyTasksBoard({
   groups,
@@ -33,7 +35,10 @@ export function MyTasksBoard({
   const sensors = useDragSensors();
   const update = useUpdateTask();
   const [activeId, setActiveId] = useState<string | null>(null);
-  const active = activeId ? [...groups.values()].flat().find((t) => t.id === activeId) : undefined;
+  const tasksById = new Map([...groups.values()].flat().map((t) => [t.id, t]));
+  const active = activeId ? tasksById.get(activeId) : undefined;
+  // Reading order: column by column, top to bottom. Your own tasks are always editable.
+  const selection = useTaskSelection(BUCKETS.flatMap((b) => (groups.get(b.id) ?? []).map((t) => t.id)));
 
   const onDragStart = (e: DragStartEvent) => setActiveId(String(e.active.id));
   const onDragEnd = (e: DragEndEvent) => {
@@ -43,35 +48,37 @@ export function MyTasksBoard({
   };
 
   return (
-    <DndContext
-      id={dndId}
-      sensors={sensors}
-      collisionDetection={bucketCollision}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      onDragCancel={() => setActiveId(null)}
-    >
-      <div className="flex h-full min-h-0 gap-3 overflow-x-auto px-4 pb-4 scrollbar-thin sm:px-6">
-        {BUCKETS.map((b) => {
-          const list = groups.get(b.id) ?? [];
-          return (
-            <Column key={b.id} bucket={b.id} label={b.label} count={list.length}>
-              <SortableContext items={list.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-                {list.map((t) => (
-                  <SortableCard key={t.id} task={t} ctx={ctx} />
-                ))}
-              </SortableContext>
-              {!list.length && (
-                <div className="rounded-lg border border-dashed border-border py-6 text-center text-xs text-faint">
-                  {activeId ? "Drop here" : "No tasks"}
-                </div>
-              )}
-            </Column>
-          );
-        })}
-      </div>
-      <DragOverlay dropAnimation={null}>{active ? <Card task={active} ctx={ctx} overlay /> : null}</DragOverlay>
-    </DndContext>
+    <TaskSelectionScope selection={selection} tasksById={tasksById}>
+      <DndContext
+        id={dndId}
+        sensors={sensors}
+        collisionDetection={bucketCollision}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        onDragCancel={() => setActiveId(null)}
+      >
+        <div className="flex h-full min-h-0 gap-3 overflow-x-auto px-4 pb-4 scrollbar-thin sm:px-6">
+          {BUCKETS.map((b) => {
+            const list = groups.get(b.id) ?? [];
+            return (
+              <Column key={b.id} bucket={b.id} label={b.label} count={list.length}>
+                <SortableContext items={list.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+                  {list.map((t) => (
+                    <SortableCard key={t.id} task={t} ctx={ctx} />
+                  ))}
+                </SortableContext>
+                {!list.length && (
+                  <div className="rounded-lg border border-dashed border-border py-6 text-center text-xs text-faint">
+                    {activeId ? "Drop here" : "No tasks"}
+                  </div>
+                )}
+              </Column>
+            );
+          })}
+        </div>
+        <DragOverlay dropAnimation={null}>{active ? <Card task={active} ctx={ctx} overlay /> : null}</DragOverlay>
+      </DndContext>
+    </TaskSelectionScope>
   );
 }
 
@@ -108,19 +115,32 @@ function Column({
 
 function SortableCard({ task, ctx }: { task: TaskItem; ctx: TaskListContext }) {
   const { setNodeRef, listeners, transform, transition, isDragging } = useSortable({ id: task.id });
+  const { selected, handlers } = useSelectableTask(task.id);
   return (
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
       {...listeners}
-      className={cn(isDragging && "opacity-40")}
+      {...handlers}
+      className={cn("select-none", isDragging && "opacity-40")}
     >
-      <Card task={task} ctx={ctx} />
+      <Card task={task} ctx={ctx} selected={selected} />
     </div>
   );
 }
 
-function Card({ task, ctx, overlay }: { task: TaskItem; ctx: TaskListContext; overlay?: boolean }) {
+function Card({
+  task,
+  ctx,
+  overlay,
+  selected,
+}: {
+  task: TaskItem;
+  ctx: TaskListContext;
+  overlay?: boolean;
+  /** Part of a multi-selection. */
+  selected?: boolean;
+}) {
   const { openTask, taskId } = useTaskPane();
   const project = task.project_id ? ctx.projects.get(task.project_id) : undefined;
   const parentName = task.parent_id ? ctx.parentNames.get(task.parent_id) : undefined;
@@ -130,6 +150,7 @@ function Card({ task, ctx, overlay }: { task: TaskItem; ctx: TaskListContext; ov
       className={cn(
         "group cursor-pointer rounded-lg border border-border bg-surface p-3 text-[13.5px] shadow-sm hover:border-border-strong",
         taskId === task.id && "border-accent",
+        selected && "border-accent bg-accent-soft ring-2 ring-accent",
         overlay && "rotate-1 shadow-pop",
       )}
     >

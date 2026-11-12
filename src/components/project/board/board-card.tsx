@@ -11,6 +11,7 @@ import type { CustomField, FieldOption } from "@/types/models";
 import { TaskCounts } from "../task-list/list-row";
 import { TagChips } from "@/components/tags/tag-chip";
 import { guardDragListeners, taskDndId } from "@/components/sections/use-section-dnd";
+import { useSelectableTask } from "@/components/task/task-selection";
 
 /** Selected options of the project's single-select fields, for the pills on a card. */
 function selectPills(fields: CustomField[], values: Map<string, Json | null> | undefined) {
@@ -75,7 +76,7 @@ export function BoardCard({
   task,
   fields,
   values,
-  selected,
+  open,
   editable,
   draggable,
   onOpen,
@@ -83,7 +84,9 @@ export function BoardCard({
   task: TaskItem;
   fields: CustomField[];
   values: Map<string, Json | null> | undefined;
-  selected: boolean;
+  /** Shown in the task pane. */
+  open: boolean;
+  /** Can change this task; only these can be multi-selected. */
   editable: boolean;
   draggable: boolean;
   onOpen: (id: string) => void;
@@ -93,6 +96,7 @@ export function BoardCard({
     disabled: !draggable,
   });
   const drag = guardDragListeners(listeners);
+  const { selected, handlers } = useSelectableTask(task.id, editable);
 
   return (
     <div
@@ -103,7 +107,8 @@ export function BoardCard({
       tabIndex={0}
       role="button"
       aria-label={task.name || "Untitled task"}
-      aria-current={selected || undefined}
+      aria-current={open || undefined}
+      {...handlers}
       onClick={() => onOpen(task.id)}
       onKeyDown={(e) => {
         if (e.key === "Enter" && e.target === e.currentTarget) {
@@ -115,8 +120,9 @@ export function BoardCard({
       }}
       className={cn(
         CARD,
-        "cursor-pointer hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-        selected && "border-accent ring-1 ring-accent",
+        "cursor-pointer select-none hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+        open && "border-accent ring-1 ring-accent",
+        selected && "border-accent bg-accent-soft ring-2 ring-accent",
         task.completed && "bg-surface/70",
         isDragging && "opacity-40",
       )}

@@ -53,7 +53,8 @@ export function MyTasksView() {
   const groups = useMemo(() => groupByBucket(visible, sort), [visible, sort]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    // Positions the bulk actions bar that the list and board show for selected tasks.
+    <div className="relative flex h-full min-h-0 flex-col">
       <header className="shrink-0 border-b border-border bg-surface px-4 pt-4 sm:px-6">
         <div className="flex items-center gap-3">
           <Avatar profile={me} size="lg" />

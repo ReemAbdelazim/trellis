@@ -23,14 +23,14 @@ import { guardDragListeners, sectionDndId, taskDndId, useSectionDnd } from "@/co
 import { DeleteSectionDialog, SectionMenu, SectionName, useSectionActions, type SectionActions } from "@/components/sections/section-controls";
 import { AddTaskInput, useAddTask } from "../task-list/task-inputs";
 import { CELL, listColumns, ListRow, ListRowOverlay, NAME_CELL, ROW_GRID } from "../task-list/list-row";
-import { BulkActionsBar } from "../task-list/bulk-actions";
-import { useTaskSelection, type SelectGesture } from "../task-list/use-task-selection";
+import { TaskSelectionScope } from "@/components/task/bulk-actions";
+import { useTaskSelection } from "@/components/task/task-selection";
 import { routes } from "@/lib/routes";
 
 export function ProjectListView({ projectId }: { projectId: string }) {
   const view = useProjectTasksView(projectId);
-  const { sections, tasksById, allBySection, canEdit, me } = view;
-  const { taskId: openId, openTask, closeTask } = useTaskPane();
+  const { sections, tasksById, allBySection, canEdit, canEditTask } = view;
+  const { taskId: openId, openTask } = useTaskPane();
   const { data: fields = [] } = useCustomFields(projectId);
   const { map: fieldValues } = useProjectFieldValues(projectId);
   const setField = useSetFieldValue(projectId);
@@ -47,22 +47,15 @@ export function ProjectListView({ projectId }: { projectId: string }) {
   const byId = new Map(sections.map((s) => [s.id, s]));
   const ordered = dnd.order.map((id) => byId.get(id)).filter((s): s is Section => !!s);
   const draggingSection = !!dnd.activeSection;
-  const editable = (t: TaskItem) => canEdit || t.assignee_id === me.id || t.created_by === me.id;
   const rowsOf = (sectionId: string) =>
     (dnd.items[sectionId] ?? []).map((id) => tasksById.get(id)).filter((t): t is TaskItem => !!t);
   // Selectable rows in display order: visible (expanded sections) and editable.
   const selectable = ordered
     .filter((s) => !collapsed.has(s.id))
     .flatMap((s) => rowsOf(s.id))
-    .filter(editable)
+    .filter(canEditTask)
     .map((t) => t.id);
-  const selection = useTaskSelection(selectable, openId);
-  // The task pane covers much of the list, so close it once a multi-select starts.
-  const onRowClick = (id: string, gesture: SelectGesture | null) => {
-    selection.onRowClick(id, gesture);
-    if (gesture && openId) closeTask();
-  };
-  const selectedTasks = selection.selected.map((id) => tasksById.get(id)).filter((t): t is TaskItem => !!t);
+  const selection = useTaskSelection(selectable);
 
   if (view.loading) return <PageLoader />;
 
@@ -135,98 +128,97 @@ export function ProjectListView({ projectId }: { projectId: string }) {
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
-      {toolbar}
-      <div className="min-h-0 flex-1 overflow-auto bg-surface scrollbar-thin">
-        <div
-          className="w-full pb-24 [--name-col:220px] sm:[--name-col:340px]"
-          style={{ minWidth: `calc(var(--name-col) + ${rest}px)`, ["--cols" as string]: template }}
-        >
-          <HeaderRow projectId={projectId} fields={fields} />
-          {nothingVisible && (
-            <div className="sticky left-0 w-fit max-w-[100vw] px-4 py-3 text-[13px] text-muted sm:px-6">
-              No tasks match {view.search.trim() ? "your search" : "these filters"}.{" "}
-              <button
-                type="button"
-                className="font-medium text-accent hover:underline"
-                onClick={() => {
-                  view.setSearch("");
-                  view.setOptions({ status: "all", ...NO_FILTERS });
-                }}
-              >
-                Show all tasks
-              </button>
-            </div>
-          )}
-          <DndContext {...dnd.context}>
-            <SortableContext items={ordered.map((s) => sectionDndId(s.id))} strategy={verticalListSortingStrategy}>
-              {ordered.map((section) => {
-                const tasks = rowsOf(section.id);
-                return (
-                  <ListSection
-                    key={section.id}
-                    section={section}
-                    tasks={tasks}
-                    total={tasks.length}
-                    collapsed={draggingSection || collapsed.has(section.id)}
-                    onToggle={() => toggle(section.id)}
-                    canEdit={canEdit}
-                    actions={actions}
-                    sectionCount={ordered.length}
-                    onAddTask={() => focusComposer(section.id)}
-                    composer={
-                      canEdit && (
-                        <AddTaskRow
-                          focusSignal={focusAdd?.sectionId === section.id ? focusAdd.n : 0}
-                          onCreate={(name) => addTask(section.id, name)}
+      <TaskSelectionScope selection={selection} tasksById={tasksById}>
+        {toolbar}
+        <div className="min-h-0 flex-1 overflow-auto bg-surface scrollbar-thin">
+          <div
+            className="w-full pb-24 [--name-col:220px] sm:[--name-col:340px]"
+            style={{ minWidth: `calc(var(--name-col) + ${rest}px)`, ["--cols" as string]: template }}
+          >
+            <HeaderRow projectId={projectId} fields={fields} />
+            {nothingVisible && (
+              <div className="sticky left-0 w-fit max-w-[100vw] px-4 py-3 text-[13px] text-muted sm:px-6">
+                No tasks match {view.search.trim() ? "your search" : "these filters"}.{" "}
+                <button
+                  type="button"
+                  className="font-medium text-accent hover:underline"
+                  onClick={() => {
+                    view.setSearch("");
+                    view.setOptions({ status: "all", ...NO_FILTERS });
+                  }}
+                >
+                  Show all tasks
+                </button>
+              </div>
+            )}
+            <DndContext {...dnd.context}>
+              <SortableContext items={ordered.map((s) => sectionDndId(s.id))} strategy={verticalListSortingStrategy}>
+                {ordered.map((section) => {
+                  const tasks = rowsOf(section.id);
+                  return (
+                    <ListSection
+                      key={section.id}
+                      section={section}
+                      tasks={tasks}
+                      total={tasks.length}
+                      collapsed={draggingSection || collapsed.has(section.id)}
+                      onToggle={() => toggle(section.id)}
+                      canEdit={canEdit}
+                      actions={actions}
+                      sectionCount={ordered.length}
+                      onAddTask={() => focusComposer(section.id)}
+                      composer={
+                        canEdit && (
+                          <AddTaskRow
+                            focusSignal={focusAdd?.sectionId === section.id ? focusAdd.n : 0}
+                            onCreate={(name) => addTask(section.id, name)}
+                          />
+                        )
+                      }
+                    >
+                      {(task) => (
+                        <ListRow
+                          key={task.id}
+                          task={task}
+                          fields={fields}
+                          values={fieldValues.get(task.id)}
+                          open={openId === task.id}
+                          editable={canEditTask(task)}
+                          draggable={canEdit}
+                          onOpen={openTask}
+                          onFieldChange={onFieldChange}
                         />
-                      )
-                    }
-                  >
-                    {(task) => (
-                      <ListRow
-                        key={task.id}
-                        task={task}
-                        fields={fields}
-                        values={fieldValues.get(task.id)}
-                        open={openId === task.id}
-                        selected={selection.isSelected(task.id)}
-                        editable={editable(task)}
-                        draggable={canEdit}
-                        onOpen={openTask}
-                        onSelect={editable(task) ? onRowClick : undefined}
-                        onFieldChange={onFieldChange}
-                      />
-                    )}
-                  </ListSection>
-                );
-              })}
-            </SortableContext>
-            <DragOverlay>
-              {dnd.activeTask ? (
-                <ListRowOverlay task={dnd.activeTask} />
-              ) : dnd.activeSection ? (
-                <div className="flex h-10 w-[min(360px,85vw)] items-center gap-2 rounded-md border border-border bg-surface px-3 font-semibold shadow-pop">
-                  <GripVertical size={14} className="text-faint" />
-                  <span className="truncate">{dnd.activeSection.name || "Untitled section"}</span>
-                </div>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
-          {canEdit && (
-            <div className="sticky left-0 w-fit px-4 pt-4 sm:px-6">
-              <Button variant="ghost" size="sm" onClick={() => actions.add()} disabled={actions.adding}>
-                <Plus size={15} /> Add section
-              </Button>
-            </div>
-          )}
+                      )}
+                    </ListSection>
+                  );
+                })}
+              </SortableContext>
+              <DragOverlay>
+                {dnd.activeTask ? (
+                  <ListRowOverlay task={dnd.activeTask} />
+                ) : dnd.activeSection ? (
+                  <div className="flex h-10 w-[min(360px,85vw)] items-center gap-2 rounded-md border border-border bg-surface px-3 font-semibold shadow-pop">
+                    <GripVertical size={14} className="text-faint" />
+                    <span className="truncate">{dnd.activeSection.name || "Untitled section"}</span>
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+            {canEdit && (
+              <div className="sticky left-0 w-fit px-4 pt-4 sm:px-6">
+                <Button variant="ghost" size="sm" onClick={() => actions.add()} disabled={actions.adding}>
+                  <Plus size={15} /> Add section
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-      {selectedTasks.length > 0 && <BulkActionsBar tasks={selectedTasks} onClear={selection.clear} />}
-      <DeleteSectionDialog
-        actions={actions}
-        sections={ordered}
-        taskCount={(id) => allBySection.get(id)?.length ?? 0}
-      />
+        <DeleteSectionDialog
+          actions={actions}
+          sections={ordered}
+          taskCount={(id) => allBySection.get(id)?.length ?? 0}
+        />
+      </TaskSelectionScope>
     </div>
   );
 }
