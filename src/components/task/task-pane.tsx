@@ -18,7 +18,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useMe } from "@/lib/queries/me";
 import { useProjects } from "@/lib/queries/projects";
 import { useSections } from "@/lib/queries/sections";
-import { useCanEditTask, useDeleteTask, useTask, useUpdateTask } from "@/lib/queries/tasks";
+import { useCanEditTask, useDeleteTasks, useTask, useUpdateTask } from "@/lib/queries/tasks";
 import { useSetTaskPerson, useTaskPeople } from "@/lib/queries/task-detail";
 import { useCustomFields, useSetFieldValue, useTaskFieldValues } from "@/lib/queries/fields";
 import { useProfileMap } from "@/lib/queries/people";
@@ -86,7 +86,7 @@ function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () => void }
   const { data: canEdit = false } = useCanEditTask(taskId);
   const { data: canComment = false } = useCanComment(taskId);
   const update = useUpdateTask();
-  const del = useDeleteTask();
+  const del = useDeleteTasks();
   const { openTask } = useTaskPane();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -223,7 +223,7 @@ function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () => void }
         title="Delete this task?"
         description="The task, its subtasks, comments, and attachments will be permanently deleted."
         onConfirm={() => {
-          del.mutate(task);
+          del.mutate([task]);
           setConfirmDelete(false);
           onClose();
         }}

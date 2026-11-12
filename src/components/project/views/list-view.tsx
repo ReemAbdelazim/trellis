@@ -23,6 +23,8 @@ import { guardDragListeners, sectionDndId, taskDndId, useSectionDnd } from "@/co
 import { DeleteSectionDialog, SectionMenu, SectionName, useSectionActions, type SectionActions } from "@/components/sections/section-controls";
 import { AddTaskInput, useAddTask } from "../task-list/task-inputs";
 import { CELL, listColumns, ListRow, ListRowOverlay, NAME_CELL, ROW_GRID } from "../task-list/list-row";
+import { BulkActionsBar } from "../task-list/bulk-actions";
+import { useTaskSelection } from "../task-list/use-task-selection";
 import { routes } from "@/lib/routes";
 
 export function ProjectListView({ projectId }: { projectId: string }) {
@@ -42,11 +44,22 @@ export function ProjectListView({ projectId }: { projectId: string }) {
   const [focusAdd, setFocusAdd] = useState<{ sectionId: string; n: number } | null>(null);
   const [started, setStarted] = useState(false);
 
-  if (view.loading) return <PageLoader />;
-
   const byId = new Map(sections.map((s) => [s.id, s]));
   const ordered = dnd.order.map((id) => byId.get(id)).filter((s): s is Section => !!s);
   const draggingSection = !!dnd.activeSection;
+  const editable = (t: TaskItem) => canEdit || t.assignee_id === me.id || t.created_by === me.id;
+  const rowsOf = (sectionId: string) =>
+    (dnd.items[sectionId] ?? []).map((id) => tasksById.get(id)).filter((t): t is TaskItem => !!t);
+  // Selectable rows in display order: visible (expanded sections) and editable.
+  const selectable = ordered
+    .filter((s) => !collapsed.has(s.id))
+    .flatMap((s) => rowsOf(s.id))
+    .filter(editable)
+    .map((t) => t.id);
+  const selection = useTaskSelection(selectable);
+  const selectedTasks = selection.selected.map((id) => tasksById.get(id)).filter((t): t is TaskItem => !!t);
+
+  if (view.loading) return <PageLoader />;
 
   const toggle = (id: string) =>
     setCollapsed((prev) => {
@@ -115,8 +128,13 @@ export function ProjectListView({ projectId }: { projectId: string }) {
   const { template, rest } = listColumns(fields.length);
   const nothingVisible = view.tasks.length > 0 && view.visibleCount === 0;
 
+  const open = (id: string) => {
+    selection.startAt(id);
+    openTask(id);
+  };
+
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="relative flex h-full min-h-0 flex-col">
       {toolbar}
       <div className="min-h-0 flex-1 overflow-auto bg-surface scrollbar-thin">
         <div
@@ -142,13 +160,13 @@ export function ProjectListView({ projectId }: { projectId: string }) {
           <DndContext {...dnd.context}>
             <SortableContext items={ordered.map((s) => sectionDndId(s.id))} strategy={verticalListSortingStrategy}>
               {ordered.map((section) => {
-                const ids = dnd.items[section.id] ?? [];
+                const tasks = rowsOf(section.id);
                 return (
                   <ListSection
                     key={section.id}
                     section={section}
-                    tasks={ids.map((id) => tasksById.get(id)).filter((t): t is TaskItem => !!t)}
-                    total={ids.length}
+                    tasks={tasks}
+                    total={tasks.length}
                     collapsed={draggingSection || collapsed.has(section.id)}
                     onToggle={() => toggle(section.id)}
                     canEdit={canEdit}
@@ -170,10 +188,12 @@ export function ProjectListView({ projectId }: { projectId: string }) {
                         task={task}
                         fields={fields}
                         values={fieldValues.get(task.id)}
-                        selected={openId === task.id}
-                        editable={canEdit || task.assignee_id === me.id || task.created_by === me.id}
+                        open={openId === task.id}
+                        selected={selection.isSelected(task.id)}
+                        editable={editable(task)}
                         draggable={canEdit}
-                        onOpen={openTask}
+                        onOpen={open}
+                        onSelect={editable(task) ? selection.select : undefined}
                         onFieldChange={onFieldChange}
                       />
                     )}
@@ -201,6 +221,7 @@ export function ProjectListView({ projectId }: { projectId: string }) {
           )}
         </div>
       </div>
+      {selectedTasks.length > 0 && <BulkActionsBar tasks={selectedTasks} onClear={selection.clear} />}
       <DeleteSectionDialog
         actions={actions}
         sections={ordered}

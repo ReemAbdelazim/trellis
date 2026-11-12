@@ -309,6 +309,30 @@ check("admin can delete a tag, which leaves every task", !adminDel && leftover?.
 const { data: keepTag } = await cm1.from("tags").insert({ name: `Funding ${run}` }).select().single();
 await cm1.from("task_tags").insert({ task_id: t4, tag_id: keepTag.id });
 
+const tagged = crypto.randomUUID();
+await cm1.from("tasks").insert({ id: tagged, project_id: pub.id, name: "Tagged, then deleted", created_by: m1.user.id });
+await cm1.from("task_tags").insert({ task_id: tagged, tag_id: keepTag.id });
+const { data: delTagged, error: delTaggedErr } = await cm1.from("tasks").delete().eq("id", tagged).select("id");
+check("a tagged task can be deleted", !delTaggedErr && delTagged?.length === 1, delTaggedErr?.message);
+
+console.log("\nBulk edits");
+const bulkA = crypto.randomUUID();
+const bulkB = crypto.randomUUID();
+await cm1.from("tasks").insert([
+  { id: bulkA, project_id: pub.id, name: `Bulk A ${run}`, created_by: m1.user.id },
+  { id: bulkB, project_id: pub.id, name: `Bulk B ${run}`, created_by: m1.user.id },
+]);
+const { data: bulkRows } = await cm2.from("tasks").update({ assignee_id: m2.user.id }).in("id", [bulkA, bulkB, t1]).select("id");
+check("bulk update changes only the tasks you can edit", bulkRows?.length === 2 && !bulkRows.some((r) => r.id === t1), bulkRows);
+const { error: bulkTagErr } = await cm2.from("task_tags").insert([bulkA, bulkB].map((task_id) => ({ task_id, tag_id: keepTag.id })));
+check("bulk tagging", !bulkTagErr, bulkTagErr?.message);
+const { error: bulkTagPrivate } = await cm2.from("task_tags").insert([bulkA, t1].map((task_id) => ({ task_id, tag_id: keepTag.id })));
+check("…is all-or-nothing when one task isn't yours", !!bulkTagPrivate);
+const { data: bulkDel } = await cm2.from("tasks").delete().in("id", [bulkA, bulkB, t1]).select("id");
+check("bulk delete removes only the tasks you can edit", bulkDel?.length === 2, bulkDel);
+const { data: t1Still } = await cm1.from("tasks").select("id").eq("id", t1);
+check("…and leaves the rest", t1Still?.length === 1);
+
 console.log("\nTemplates");
 const { data: copyId, error: dupErr } = await cm1.rpc("duplicate_project", { p_project: pub.id, p_name: `Copy ${run}`, p_include_tasks: true, p_as_template: false });
 check("duplicate project", !dupErr, dupErr?.message);

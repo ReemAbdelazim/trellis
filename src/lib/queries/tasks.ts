@@ -131,17 +131,19 @@ export function useCanEditTask(id: string | null | undefined) {
 // Cache helpers
 // ---------------------------------------------------------------------------
 
-/** Apply a patch to a task wherever it is cached. */
-export function patchTaskInCaches(qc: QueryClient, id: string, patch: Partial<TaskItem>) {
+/** Apply a patch to one or more tasks wherever they are cached. */
+export function patchTaskInCaches(qc: QueryClient, ids: string | readonly string[], patch: Partial<TaskItem>) {
+  const set = new Set(typeof ids === "string" ? [ids] : ids);
   qc.setQueriesData<TaskItem[]>({ queryKey: qk.tasks }, (list) =>
-    Array.isArray(list) ? list.map((t) => (t.id === id ? { ...t, ...patch } : t)) : list,
+    Array.isArray(list) ? list.map((t) => (set.has(t.id) ? { ...t, ...patch } : t)) : list,
   );
-  qc.setQueryData<TaskItem | null>(qk.task(id), (t) => (t ? { ...t, ...patch } : t));
+  for (const id of set) qc.setQueryData<TaskItem | null>(qk.task(id), (t) => (t ? { ...t, ...patch } : t));
 }
 
-function removeTaskFromCaches(qc: QueryClient, id: string) {
+function removeTasksFromCaches(qc: QueryClient, ids: readonly string[]) {
+  const set = new Set(ids);
   qc.setQueriesData<TaskItem[]>({ queryKey: qk.tasks }, (list) =>
-    Array.isArray(list) ? list.filter((t) => t.id !== id) : list,
+    Array.isArray(list) ? list.filter((t) => !set.has(t.id)) : list,
   );
 }
 
@@ -171,6 +173,32 @@ export function restoreTasks(qc: QueryClient, snap: ReturnType<typeof snapshotTa
 
 const MEMBERSHIP_FIELDS = ["assignee_id", "project_id", "parent_id", "due_date", "start_date", "completed"] as const;
 
+// Shared by single and bulk edits: patch the caches straight away, roll back on
+// failure, then take the server's copy (triggers can change completed_at, section, rules).
+async function patchOptimistically(qc: QueryClient, ids: string[], patch: TaskUpdate) {
+  await qc.cancelQueries({ queryKey: qk.tasks });
+  await Promise.all(ids.map((id) => qc.cancelQueries({ queryKey: qk.task(id) })));
+  const snap = snapshotTasks(qc);
+  patchTaskInCaches(qc, ids, patch as Partial<TaskItem>);
+  return { snap };
+}
+
+function rollBack(qc: QueryClient, err: unknown, ctx: { snap: ReturnType<typeof snapshotTasks> } | undefined) {
+  if (ctx?.snap) restoreTasks(qc, ctx.snap);
+  toast.error(errorMessage(err));
+}
+
+function settle(qc: QueryClient, rows: Task[], patch: TaskUpdate) {
+  for (const row of rows) patchTaskInCaches(qc, row.id, row);
+  if (rows.some((r) => r.project_id)) qc.invalidateQueries({ queryKey: qk.projectStats });
+  // These change which lists a task belongs to (My tasks, a project, a date range),
+  // so refetch the lists rather than only patching rows in place.
+  if (MEMBERSHIP_FIELDS.some((f) => f in patch)) {
+    qc.invalidateQueries({ queryKey: qk.tasks });
+    for (const row of rows) qc.invalidateQueries({ queryKey: qk.canEditTask(row.id) });
+  }
+}
+
 export function useUpdateTask() {
   const qc = useQueryClient();
   return useMutation({
@@ -180,26 +208,29 @@ export function useUpdateTask() {
       if (!data) throw new Error("You don't have permission to edit this task");
       return data;
     },
-    onMutate: async ({ id, ...patch }) => {
-      await qc.cancelQueries({ queryKey: qk.tasks });
-      await qc.cancelQueries({ queryKey: qk.task(id) });
-      const snap = snapshotTasks(qc);
-      patchTaskInCaches(qc, id, patch as Partial<Task>);
-      return { snap };
+    onMutate: ({ id, ...patch }) => patchOptimistically(qc, [id], patch),
+    onError: (err, _vars, ctx) => rollBack(qc, err, ctx),
+    onSuccess: (row, vars) => settle(qc, [row], vars),
+  });
+}
+
+/** The same change to several tasks in one request; tasks you can't edit are left as they were. */
+export function useUpdateTasks() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ ids, patch }: { ids: string[]; patch: TaskUpdate }) => {
+      const { data, error } = await supabase().from("tasks").update(patch).in("id", ids).select(TASK_COLUMNS);
+      if (error) throw error;
+      return data;
     },
-    onError: (err, _vars, ctx) => {
-      if (ctx?.snap) restoreTasks(qc, ctx.snap);
-      toast.error(errorMessage(err));
-    },
-    onSuccess: (row, { id, ...patch }) => {
-      // Server triggers can change other columns (completed_at, section, rules) — take the server copy.
-      patchTaskInCaches(qc, row.id, row);
-      if (row.project_id) qc.invalidateQueries({ queryKey: qk.projectStats });
-      // These change which lists the task belongs to (My tasks, a project, a date range),
-      // so refetch the lists rather than only patching rows in place.
-      if (MEMBERSHIP_FIELDS.some((f) => f in patch)) {
+    onMutate: ({ ids, patch }) => patchOptimistically(qc, ids, patch),
+    onError: (err, _vars, ctx) => rollBack(qc, err, ctx),
+    onSuccess: (rows, { ids, patch }) => {
+      settle(qc, rows, patch);
+      const skipped = ids.length - rows.length;
+      if (skipped) {
         qc.invalidateQueries({ queryKey: qk.tasks });
-        qc.invalidateQueries({ queryKey: qk.canEditTask(id) });
+        toast.error(`${skipped} of the selected tasks couldn't be changed: you don't have edit access to them`);
       }
     },
   });
@@ -249,7 +280,7 @@ export function useCreateTask() {
       return {};
     },
     onError: (err, input) => {
-      removeTaskFromCaches(qc, input.id);
+      removeTasksFromCaches(qc, [input.id]);
       if (input.parent_id) adjustSubtaskCount(qc, input.parent_id, -1);
       toast.error(errorMessage(err));
     },
@@ -260,25 +291,25 @@ export function useCreateTask() {
   });
 }
 
-export function useDeleteTask() {
+/** Delete one or more tasks (their subtasks go with them). */
+export function useDeleteTasks() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (task: Pick<Task, "id" | "parent_id">) => {
-      const { error } = await supabase().from("tasks").delete().eq("id", task.id);
+    mutationFn: async (tasks: Pick<Task, "id" | "parent_id">[]) => {
+      const ids = tasks.map((t) => t.id);
+      const { data, error } = await supabase().from("tasks").delete().in("id", ids).select("id");
       if (error) throw error;
+      if (data.length < ids.length) throw new Error("Some of these tasks couldn't be deleted: you don't have edit access to them");
     },
-    onMutate: async (task) => {
+    onMutate: async (tasks) => {
       await qc.cancelQueries({ queryKey: qk.tasks });
       const snap = snapshotTasks(qc);
-      removeTaskFromCaches(qc, task.id);
-      if (task.parent_id) adjustSubtaskCount(qc, task.parent_id, -1);
+      removeTasksFromCaches(qc, tasks.map((t) => t.id));
+      for (const t of tasks) if (t.parent_id) adjustSubtaskCount(qc, t.parent_id, -1);
       return { snap };
     },
-    onError: (err, _t, ctx) => {
-      if (ctx?.snap) restoreTasks(qc, ctx.snap);
-      toast.error(errorMessage(err));
-    },
-    onSuccess: (_d, task) => qc.removeQueries({ queryKey: qk.task(task.id) }),
+    onError: (err, _t, ctx) => rollBack(qc, err, ctx),
+    onSuccess: (_d, tasks) => tasks.forEach((t) => qc.removeQueries({ queryKey: qk.task(t.id) })),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: qk.projectStats });
       // Subtasks are deleted with their parent; drop them from any list they were in.

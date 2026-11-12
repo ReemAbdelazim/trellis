@@ -6,7 +6,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import { ChevronRight, GripVertical, ListPlus, MessageSquare, Plus, Trash2 } from "lucide-react";
 import { useMe } from "@/lib/queries/me";
-import { newId, useCreateTask, useDeleteTask, useSubtasks, useUpdateTask, type TaskItem } from "@/lib/queries/tasks";
+import { newId, useCreateTask, useDeleteTasks, useSubtasks, useUpdateTask, type TaskItem } from "@/lib/queries/tasks";
 import { sectionsFilter, sectionsKey, useSections } from "@/lib/queries/sections";
 import { useRealtime } from "@/lib/queries/realtime";
 import { qk } from "@/lib/queries/keys";
@@ -239,7 +239,7 @@ function SubtaskSection({
 
 function SubtaskRow({ task, canEdit }: { task: TaskItem; canEdit: boolean }) {
   const update = useUpdateTask();
-  const del = useDeleteTask();
+  const del = useDeleteTasks();
   const { openTask } = useTaskPane();
   const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({
     id: taskDndId(task.id),
@@ -277,7 +277,7 @@ function SubtaskRow({ task, canEdit }: { task: TaskItem; canEdit: boolean }) {
       <AssigneeButton task={task} disabled={!canEdit} size="xs" />
       {canEdit && (
         <button
-          onClick={() => del.mutate(task)}
+          onClick={() => del.mutate([task])}
           className="rounded p-1 text-faint opacity-0 group-hover:opacity-100 hover:bg-surface-2 hover:text-danger"
           aria-label="Delete subtask"
         >

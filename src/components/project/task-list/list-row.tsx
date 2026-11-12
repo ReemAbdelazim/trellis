@@ -12,6 +12,7 @@ import type { CustomField } from "@/types/models";
 import { TaskNameInput } from "./task-inputs";
 import { TagChips } from "@/components/tags/tag-chip";
 import { guardDragListeners, taskDndId } from "@/components/sections/use-section-dnd";
+import { selectGesture, type SelectGesture } from "./use-task-selection";
 
 /** Grid template shared by the header, rows and add rows (set as --cols on the table). */
 export function listColumns(fieldCount: number) {
@@ -51,27 +52,34 @@ export function ListRow({
   task,
   fields,
   values,
+  open,
   selected,
   editable,
   draggable,
   onOpen,
+  onSelect,
   onFieldChange,
 }: {
   task: TaskItem;
   fields: CustomField[];
   values: Map<string, Json | null> | undefined;
+  /** Shown in the task pane. */
+  open: boolean;
+  /** Part of a multi-selection (Shift/Ctrl/Cmd-click). */
   selected: boolean;
   /** Can change this task (project editor, creator or assignee). */
   editable: boolean;
   draggable: boolean;
   onOpen: (id: string) => void;
+  /** Present when the row can be multi-selected. */
+  onSelect?: (id: string, gesture: SelectGesture) => void;
   onFieldChange: (taskId: string, fieldId: string, value: Json | null) => void;
 }) {
   const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({
     id: taskDndId(task.id),
     disabled: !draggable,
   });
-  const bg = selected ? "bg-accent-soft" : "bg-surface group-hover:bg-surface-2";
+  const bg = selected || open ? "bg-accent-soft" : "bg-surface group-hover:bg-surface-2";
 
   return (
     <div
@@ -79,8 +87,17 @@ export function ListRow({
       style={{ transform: CSS.Translate.toString(transform), transition }}
       tabIndex={0}
       aria-label={task.name || "Untitled task"}
-      aria-current={selected || undefined}
-      onClick={() => onOpen(task.id)}
+      aria-current={open || undefined}
+      aria-selected={onSelect ? selected : undefined}
+      // Modifier clicks select instead of focusing the name or selecting text.
+      onMouseDown={(e) => {
+        if (onSelect && selectGesture(e)) e.preventDefault();
+      }}
+      onClick={(e) => {
+        const gesture = onSelect && selectGesture(e);
+        if (gesture) onSelect(task.id, gesture);
+        else onOpen(task.id);
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter" && e.target === e.currentTarget) {
           e.preventDefault();
@@ -90,6 +107,7 @@ export function ListRow({
       className={cn(
         ROW_GRID,
         "group min-h-9 cursor-pointer outline-none focus-visible:relative focus-visible:z-[6] focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset",
+        selected && "relative z-[6] shadow-[inset_3px_0_0_var(--color-accent)]",
         isDragging && "opacity-40",
       )}
     >

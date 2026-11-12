@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Plus } from "lucide-react";
+import { Check, Minus, Plus } from "lucide-react";
 import { useMe } from "@/lib/queries/me";
 import { useCreateTag, useSetTaskTag, useTagMap, useTags } from "@/lib/queries/tags";
 import type { TaskItem } from "@/lib/queries/tasks";
@@ -26,11 +26,11 @@ export function TaskTags({ task, canEdit }: { task: TaggedTask; canEdit: boolean
           key={t.id}
           tag={t}
           link
-          onRemove={canEdit ? () => setTag.mutate({ task, tagId: t.id, on: false }) : undefined}
+          onRemove={canEdit ? () => setTag.mutate({ tasks: [task], tagId: t.id, on: false }) : undefined}
         />
       ))}
       {canEdit ? (
-        <TagPicker task={task}>
+        <TagPicker tasks={[task]}>
           <button
             type="button"
             className="flex h-6 items-center gap-1 rounded px-1.5 text-[12.5px] text-faint hover:bg-surface-2 hover:text-text"
@@ -45,8 +45,19 @@ export function TaskTags({ task, canEdit }: { task: TaggedTask; canEdit: boolean
   );
 }
 
-/** Find a tag to toggle on the task, or create one from what was typed. */
-function TagPicker({ task, children }: { task: TaggedTask; children: React.ReactNode }) {
+/**
+ * Find a tag to toggle on one or more tasks, or create one from what was typed.
+ * With several tasks, a tag some of them have shows a dash; picking it adds it to all.
+ */
+export function TagPicker({
+  tasks,
+  children,
+  align,
+}: {
+  tasks: TaggedTask[];
+  children: React.ReactNode;
+  align?: "start" | "center" | "end";
+}) {
   const me = useMe();
   const { data: tags = [] } = useTags();
   const setTag = useSetTaskTag();
@@ -58,13 +69,14 @@ function TagPicker({ task, children }: { task: TaggedTask; children: React.React
   const exact = tags.find((t) => t.name.toLowerCase() === needle);
   const canCreate = me.role !== "guest" && !!needle && !exact;
 
-  const toggle = (tag: Tag) => setTag.mutate({ task, tagId: tag.id, on: !task.tag_ids.includes(tag.id) });
+  const countWith = (tag: Tag) => tasks.filter((t) => t.tag_ids.includes(tag.id)).length;
+  const toggle = (tag: Tag) => setTag.mutate({ tasks, tagId: tag.id, on: countWith(tag) < tasks.length });
   // Clear the box straight away so typing can continue; put the name back if creating fails.
   const createAndAdd = () => {
     const name = query.trim();
     setQuery("");
     create.mutate(name, {
-      onSuccess: (tag) => setTag.mutate({ task, tagId: tag.id, on: true }),
+      onSuccess: (tag) => setTag.mutate({ tasks, tagId: tag.id, on: true }),
       onError: () => setQuery(name),
     });
   };
@@ -72,7 +84,7 @@ function TagPicker({ task, children }: { task: TaggedTask; children: React.React
   return (
     <Popover onOpenChange={(open) => !open && setQuery("")}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent className="w-64 p-1.5">
+      <PopoverContent align={align} className="w-64 p-1.5">
         <input
           autoFocus
           value={query}
@@ -90,9 +102,11 @@ function TagPicker({ task, children }: { task: TaggedTask; children: React.React
         />
         <ul className="max-h-64 overflow-y-auto scrollbar-thin" role="listbox" aria-label="Tags" aria-multiselectable>
           {matches.map((t) => {
-            const selected = task.tag_ids.includes(t.id);
+            const n = countWith(t);
+            const all = n === tasks.length;
+            const Mark = all || !n ? Check : Minus;
             return (
-              <li key={t.id} role="option" aria-selected={selected}>
+              <li key={t.id} role="option" aria-selected={all}>
                 <button
                   type="button"
                   onClick={() => toggle(t)}
@@ -100,7 +114,7 @@ function TagPicker({ task, children }: { task: TaggedTask; children: React.React
                 >
                   <ColorDot color={t.color} className="rounded-full" />
                   <span className="min-w-0 flex-1 truncate">{t.name}</span>
-                  <Check size={14} className={cn("shrink-0 text-accent", !selected && "invisible")} />
+                  <Mark size={14} className={cn("shrink-0 text-accent", !n && "invisible")} />
                 </button>
               </li>
             );

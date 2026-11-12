@@ -84,27 +84,34 @@ export function useDeleteTag() {
   });
 }
 
-/** Add or remove one tag on a task, updating every cached copy of the task at once. */
+type TaggedTask = Pick<TaskItem, "id" | "tag_ids">;
+
+/** Add or remove one tag on one or more tasks, updating every cached copy at once. */
 export function useSetTaskTag() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ task, tagId, on }: { task: Pick<TaskItem, "id" | "tag_ids">; tagId: string; on: boolean }) => {
+    mutationFn: async ({ tasks, tagId, on }: { tasks: TaggedTask[]; tagId: string; on: boolean }) => {
       const table = supabase().from("task_tags");
+      const missing = tasks.filter((t) => !t.tag_ids.includes(tagId));
       const { error } = on
-        ? await table.insert({ task_id: task.id, tag_id: tagId })
-        : await table.delete().eq("task_id", task.id).eq("tag_id", tagId);
+        ? missing.length
+          ? await table.insert(missing.map((t) => ({ task_id: t.id, tag_id: tagId })))
+          : { error: null }
+        : await table.delete().eq("tag_id", tagId).in("task_id", tasks.map((t) => t.id));
       if (error) throw error;
     },
-    onMutate: ({ task, tagId, on }) => {
+    onMutate: ({ tasks, tagId, on }) => {
       const snap = snapshotTasks(qc);
-      const tag_ids = on ? [...new Set([...task.tag_ids, tagId])] : task.tag_ids.filter((id) => id !== tagId);
-      patchTaskInCaches(qc, task.id, { tag_ids });
+      for (const t of tasks) {
+        const tag_ids = on ? [...new Set([...t.tag_ids, tagId])] : t.tag_ids.filter((id) => id !== tagId);
+        patchTaskInCaches(qc, t.id, { tag_ids });
+      }
       return { snap };
     },
     onError: (err, _v, ctx) => {
       if (ctx?.snap) restoreTasks(qc, ctx.snap);
       toast.error(errorMessage(err));
     },
-    onSettled: (_d, _e, { task }) => qc.invalidateQueries({ queryKey: qk.activity(task.id) }),
+    onSettled: (_d, _e, { tasks }) => tasks.forEach((t) => qc.invalidateQueries({ queryKey: qk.activity(t.id) })),
   });
 }
