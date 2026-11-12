@@ -62,6 +62,7 @@ function BulkActionsBar({ tasks, onClear }: { tasks: TaskItem[]; onClear: () => 
     <>
       <div
         role="toolbar"
+        data-bulk-actions
         aria-label={`${count} ${noun} selected`}
         className="absolute bottom-4 left-1/2 z-30 flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-1 rounded-lg border border-border bg-surface p-1.5 shadow-pop"
       >

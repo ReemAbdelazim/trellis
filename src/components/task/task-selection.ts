@@ -13,6 +13,26 @@ function selectGesture(e: { shiftKey: boolean; metaKey: boolean; ctrlKey: boolea
 }
 
 /**
+ * Presses inside these leave the selection alone: selectable tasks (which handle
+ * their own clicks), the bulk actions bar, and the pickers, dialogs and toasts it opens.
+ */
+const KEEPS_SELECTION = [
+  "[aria-selected]",
+  "[data-bulk-actions]",
+  "[data-radix-popper-content-wrapper]",
+  "[role=dialog]",
+  "[role=alertdialog]",
+  "[data-sonner-toaster]",
+].join(",");
+
+/** Whether a press landed on an element's own scrollbar (dragging it shouldn't clear the selection). */
+function onScrollbar(e: PointerEvent) {
+  const el = e.target as HTMLElement;
+  const rect = el.getBoundingClientRect();
+  return e.clientX - rect.left > el.clientLeft + el.clientWidth || e.clientY - rect.top > el.clientTop + el.clientHeight;
+}
+
+/**
  * Multi-select over a view's tasks in display order. `order` holds only the tasks
  * that can be selected right now (visible and editable), so tasks that are
  * filtered out, collapsed or deleted drop out of the selection on their own.
@@ -62,14 +82,25 @@ export function useTaskSelection(order: string[]) {
     anchor.current = id;
   };
 
+  // Esc, or a press anywhere that isn't a task or part of acting on the selection, clears it.
   const active = selected.length > 0;
   useEffect(() => {
     if (!active) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !e.defaultPrevented) clear();
     };
+    const onPress = (e: PointerEvent) => {
+      if (e.button !== 0 || !(e.target instanceof Element)) return;
+      if (e.target.closest(KEEPS_SELECTION) || onScrollbar(e)) return;
+      clear();
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // Capture phase, so presses that inner elements stop still count.
+    document.addEventListener("pointerdown", onPress, true);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onPress, true);
+    };
   }, [active, clear]);
 
   /** The tasks a drag of `id` moves: the whole selection (in display order) when it includes `id`. */
