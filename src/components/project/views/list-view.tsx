@@ -23,7 +23,7 @@ import { guardDragListeners, sectionDndId, taskDndId, useSectionDnd } from "@/co
 import { DeleteSectionDialog, SectionMenu, SectionName, useSectionActions, type SectionActions } from "@/components/sections/section-controls";
 import { AddTaskInput, useAddTask } from "../task-list/task-inputs";
 import { CELL, listColumns, ListRow, ListRowOverlay, NAME_CELL, ROW_GRID } from "../task-list/list-row";
-import { TaskSelectionScope } from "@/components/task/bulk-actions";
+import { DragCount, TaskSelectionScope } from "@/components/task/bulk-actions";
 import { useTaskSelection } from "@/components/task/task-selection";
 import { routes } from "@/lib/routes";
 
@@ -37,9 +37,18 @@ export function ProjectListView({ projectId }: { projectId: string }) {
   const actions = useSectionActions({ projectId }, sections);
   const addTask = useAddTask(projectId, allBySection);
   const manual = view.options.sort === "manual";
-  const dnd = useSectionDnd({ owner: { projectId }, sections, groups: view.groups, tasksById, allBySection, manual });
-
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  const selection = useTaskSelection(view.selectableIds(collapsed));
+  const dnd = useSectionDnd({
+    owner: { projectId },
+    sections,
+    groups: view.groups,
+    tasksById,
+    allBySection,
+    manual,
+    dragGroup: selection.dragGroup,
+  });
+
   // Bumping `n` focuses that section's "Add task…" input.
   const [focusAdd, setFocusAdd] = useState<{ sectionId: string; n: number } | null>(null);
   const [started, setStarted] = useState(false);
@@ -49,13 +58,6 @@ export function ProjectListView({ projectId }: { projectId: string }) {
   const draggingSection = !!dnd.activeSection;
   const rowsOf = (sectionId: string) =>
     (dnd.items[sectionId] ?? []).map((id) => tasksById.get(id)).filter((t): t is TaskItem => !!t);
-  // Selectable rows in display order: visible (expanded sections) and editable.
-  const selectable = ordered
-    .filter((s) => !collapsed.has(s.id))
-    .flatMap((s) => rowsOf(s.id))
-    .filter(canEditTask)
-    .map((t) => t.id);
-  const selection = useTaskSelection(selectable);
 
   if (view.loading) return <PageLoader />;
 
@@ -195,7 +197,9 @@ export function ProjectListView({ projectId }: { projectId: string }) {
               </SortableContext>
               <DragOverlay>
                 {dnd.activeTask ? (
-                  <ListRowOverlay task={dnd.activeTask} />
+                  <DragCount count={dnd.activeCount}>
+                    <ListRowOverlay task={dnd.activeTask} />
+                  </DragCount>
                 ) : dnd.activeSection ? (
                   <div className="flex h-10 w-[min(360px,85vw)] items-center gap-2 rounded-md border border-border bg-surface px-3 font-semibold shadow-pop">
                     <GripVertical size={14} className="text-faint" />

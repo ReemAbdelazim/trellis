@@ -72,40 +72,47 @@ export function useTaskSelection(order: string[]) {
     return () => window.removeEventListener("keydown", onKey);
   }, [active, clear]);
 
-  return { selected, isSelected: (id: string) => picked.has(id), onTaskClick, clear };
+  /** The tasks a drag of `id` moves: the whole selection (in display order) when it includes `id`. */
+  const dragGroup = (id: string) => (selected.length > 1 && picked.has(id) ? selected : [id]);
+
+  return { selected, isSelected: (id: string) => picked.has(id), onTaskClick, clear, dragGroup };
 }
 
 export type TaskSelection = ReturnType<typeof useTaskSelection>;
 
 export const TaskSelectionContext = createContext<TaskSelection | null>(null);
 
+// Where the current press started: a click that ends a drag isn't a selection click.
+let pressedAt: { x: number; y: number } | null = null;
+const DRAG_DISTANCE = 5;
+
 /**
  * Makes a task row or card selectable: spread `handlers` on its outermost element.
- * Modifier presses are caught before anything inside sees them, so a Shift/Ctrl/Cmd-click
- * anywhere on it selects: it never ticks the checkbox, opens a picker, starts a drag,
- * focuses a field or highlights text. Outside a selection scope, or when `enabled` is
- * false, it does nothing.
+ * Shift/Ctrl/Cmd-clicks anywhere on it select: they're caught before anything inside
+ * sees the click, so they never tick the checkbox or open a picker, and the press
+ * doesn't focus a field or highlight text. The press itself still goes through, so
+ * a selected group can be dragged with the key held. Outside a selection scope, or
+ * when `enabled` is false, it does nothing.
  */
 export function useSelectableTask(id: string, enabled = true) {
   const selection = useContext(TaskSelectionContext);
   if (!selection || !enabled) return { selected: false, handlers: {} };
 
-  const claim = (e: React.MouseEvent) => {
-    if (selectGesture(e)) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  };
   const selected = selection.isSelected(id);
   return {
     selected,
     handlers: {
       "aria-selected": selected,
-      onPointerDownCapture: claim,
-      onMouseDownCapture: claim,
+      onMouseDownCapture: (e: React.MouseEvent) => {
+        pressedAt = { x: e.clientX, y: e.clientY };
+        if (selectGesture(e)) e.preventDefault();
+      },
       onClickCapture: (e: React.MouseEvent) => {
         const gesture = selectGesture(e);
-        selection.onTaskClick(id, gesture);
+        const dragged =
+          !!pressedAt && Math.hypot(e.clientX - pressedAt.x, e.clientY - pressedAt.y) > DRAG_DISTANCE;
+        pressedAt = null;
+        if (!dragged) selection.onTaskClick(id, gesture);
         if (gesture) {
           e.preventDefault();
           e.stopPropagation();

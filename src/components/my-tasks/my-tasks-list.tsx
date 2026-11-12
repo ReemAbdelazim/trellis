@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import { BUCKET_DROP_PREFIX, BUCKETS, computeMove, type Bucket, type SortMode } from "./buckets";
 import { bucketCollision, useDragSensors } from "./dnd";
 import { ParentHint, ProjectChip } from "./task-meta";
-import { TaskSelectionScope } from "@/components/task/bulk-actions";
+import { DragCount, TaskSelectionScope } from "@/components/task/bulk-actions";
 import { useSelectableTask, useTaskSelection } from "@/components/task/task-selection";
 import type { Project } from "@/types/models";
 
@@ -58,7 +58,8 @@ export function MyTasksList({
   const onDragEnd = (e: DragEndEvent) => {
     setActiveId(null);
     if (!e.over) return;
-    const moves = computeMove(groups, String(e.active.id), String(e.over.id), sort === "manual");
+    const id = String(e.active.id);
+    const moves = computeMove(groups, id, String(e.over.id), sort === "manual", selection.dragGroup(id));
     moves.forEach((m) => update.mutate(m));
   };
 
@@ -121,10 +122,12 @@ export function MyTasksList({
           })}
           <DragOverlay dropAnimation={null}>
             {active ? (
-              <div className="flex h-10 max-w-md items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm shadow-pop">
-                <TaskCheckbox task={active} disabled />
-                <span className="truncate">{active.name || "Untitled task"}</span>
-              </div>
+              <DragCount count={selection.dragGroup(active.id).length}>
+                <div className="flex h-10 max-w-md items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm shadow-pop">
+                  <TaskCheckbox task={active} disabled />
+                  <span className="truncate">{active.name || "Untitled task"}</span>
+                </div>
+              </DragCount>
             ) : null}
           </DragOverlay>
         </DndContext>

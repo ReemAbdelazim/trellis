@@ -31,6 +31,23 @@ export function TaskSelectionScope({
   );
 }
 
+/** Wraps a drag preview with the number of tasks it moves, when it moves more than one. */
+export function DragCount({ count, children }: { count: number; children: React.ReactNode }) {
+  return (
+    <div className="relative">
+      {children}
+      {count > 1 && (
+        <span
+          aria-label={`Moving ${count} tasks`}
+          className="absolute -top-2 -right-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-white tabular-nums shadow-pop"
+        >
+          {count}
+        </span>
+      )}
+    </div>
+  );
+}
+
 /** Floating bar for the selected tasks: reassign, tag or delete them together. */
 function BulkActionsBar({ tasks, onClear }: { tasks: TaskItem[]; onClear: () => void }) {
   const update = useUpdateTasks();

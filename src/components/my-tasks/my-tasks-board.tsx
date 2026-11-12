@@ -19,7 +19,7 @@ import { BUCKET_DROP_PREFIX, BUCKETS, computeMove, type Bucket, type SortMode } 
 import { bucketCollision, useDragSensors } from "./dnd";
 import { ParentHint, ProjectChip } from "./task-meta";
 import type { TaskListContext } from "./my-tasks-list";
-import { TaskSelectionScope } from "@/components/task/bulk-actions";
+import { DragCount, TaskSelectionScope } from "@/components/task/bulk-actions";
 import { useSelectableTask, useTaskSelection } from "@/components/task/task-selection";
 
 export function MyTasksBoard({
@@ -44,7 +44,8 @@ export function MyTasksBoard({
   const onDragEnd = (e: DragEndEvent) => {
     setActiveId(null);
     if (!e.over) return;
-    computeMove(groups, String(e.active.id), String(e.over.id), sort === "manual").forEach((m) => update.mutate(m));
+    const id = String(e.active.id);
+    computeMove(groups, id, String(e.over.id), sort === "manual", selection.dragGroup(id)).forEach((m) => update.mutate(m));
   };
 
   return (
@@ -76,7 +77,13 @@ export function MyTasksBoard({
             );
           })}
         </div>
-        <DragOverlay dropAnimation={null}>{active ? <Card task={active} ctx={ctx} overlay /> : null}</DragOverlay>
+        <DragOverlay dropAnimation={null}>
+          {active ? (
+            <DragCount count={selection.dragGroup(active.id).length}>
+              <Card task={active} ctx={ctx} overlay />
+            </DragCount>
+          ) : null}
+        </DragOverlay>
       </DndContext>
     </TaskSelectionScope>
   );

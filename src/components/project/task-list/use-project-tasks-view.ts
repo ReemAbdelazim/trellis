@@ -54,11 +54,21 @@ export function useProjectTasksView(projectId: string) {
   const visibleCount = Object.values(groups).reduce((n, ids) => n + ids.length, 0);
   /** Project editors can change any task; others only ones they created or are assigned. */
   const canEditTask = (t: TaskItem) => canEdit || t.assignee_id === me.id || t.created_by === me.id;
+  /** Visible tasks you can edit, in display order (for multi-select), skipping `hidden` sections. */
+  const selectableIds = (hidden: ReadonlySet<string> = new Set()) =>
+    sections
+      .filter((s) => !hidden.has(s.id))
+      .flatMap((s) => groups[s.id] ?? [])
+      .filter((id) => {
+        const t = tasksById.get(id);
+        return !!t && canEditTask(t);
+      });
 
   return {
     me,
     canEdit,
     canEditTask,
+    selectableIds,
     loading: sectionsQ.isLoading || tasksQ.isLoading,
     sections,
     tasks,

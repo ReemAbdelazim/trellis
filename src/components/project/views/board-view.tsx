@@ -19,7 +19,7 @@ import { DeleteSectionDialog, useSectionActions } from "@/components/sections/se
 import { useAddTask } from "../task-list/task-inputs";
 import { BoardCard, BoardCardOverlay } from "../board/board-card";
 import { BoardColumn, COLUMN_WIDTH } from "../board/board-column";
-import { TaskSelectionScope } from "@/components/task/bulk-actions";
+import { DragCount, TaskSelectionScope } from "@/components/task/bulk-actions";
 import { useTaskSelection } from "@/components/task/task-selection";
 
 export function ProjectBoardView({ projectId }: { projectId: string }) {
@@ -31,7 +31,16 @@ export function ProjectBoardView({ projectId }: { projectId: string }) {
   const actions = useSectionActions({ projectId }, sections);
   const addTask = useAddTask(projectId, allBySection);
   const manual = view.options.sort === "manual";
-  const dnd = useSectionDnd({ owner: { projectId }, sections, groups: view.groups, tasksById, allBySection, manual });
+  const selection = useTaskSelection(view.selectableIds());
+  const dnd = useSectionDnd({
+    owner: { projectId },
+    sections,
+    groups: view.groups,
+    tasksById,
+    allBySection,
+    manual,
+    dragGroup: selection.dragGroup,
+  });
   // Bumping `n` opens that column's composer.
   const [compose, setCompose] = useState<{ sectionId: string; n: number } | null>(null);
 
@@ -39,13 +48,6 @@ export function ProjectBoardView({ projectId }: { projectId: string }) {
   const ordered = dnd.order.map((id) => byId.get(id)).filter((s): s is Section => !!s);
   const cardsOf = (sectionId: string) =>
     (dnd.items[sectionId] ?? []).map((id) => tasksById.get(id)).filter((t): t is TaskItem => !!t);
-  // Selectable cards in reading order: column by column, top to bottom.
-  const selection = useTaskSelection(
-    ordered
-      .flatMap((s) => cardsOf(s.id))
-      .filter(canEditTask)
-      .map((t) => t.id),
-  );
 
   if (view.loading) return <PageLoader />;
   const selectFields = fields.filter((f) => f.type === "single_select");
@@ -144,7 +146,9 @@ export function ProjectBoardView({ projectId }: { projectId: string }) {
               </SortableContext>
               <DragOverlay>
                 {dnd.activeTask ? (
-                  <BoardCardOverlay task={dnd.activeTask} fields={selectFields} values={fieldValues.get(dnd.activeTask.id)} />
+                  <DragCount count={dnd.activeCount}>
+                    <BoardCardOverlay task={dnd.activeTask} fields={selectFields} values={fieldValues.get(dnd.activeTask.id)} />
+                  </DragCount>
                 ) : dnd.activeSection ? (
                   <div
                     className={cn(

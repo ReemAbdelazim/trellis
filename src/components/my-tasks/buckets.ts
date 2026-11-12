@@ -1,4 +1,4 @@
-import { positionBetween } from "@/lib/utils";
+import { placeAt } from "@/lib/utils";
 import type { TaskItem } from "@/lib/queries/tasks";
 
 export type Bucket = "recently_assigned" | "today" | "upcoming" | "later";
@@ -52,80 +52,54 @@ export interface MoveUpdate {
 
 /**
  * Work out the updates for dropping `activeId` onto `overId` (a task id or a
- * `bucket:<id>` container). Returns [] when nothing changes. When neighbours
- * share a position (new rows all start at 0) the target bucket is renumbered.
+ * `bucket:<id>` container). `group` is every task the drag moves, in display
+ * order (several when a multi-selection is dragged). Returns [] when nothing
+ * changes. When neighbours share a position (new rows all start at 0) the
+ * target bucket is renumbered.
  */
 export function computeMove(
   groups: Map<Bucket, TaskItem[]>,
   activeId: string,
   overId: string,
   reorder: boolean,
+  group: string[] = [activeId],
 ): MoveUpdate[] {
-  let from: Bucket | null = null;
-  let active: TaskItem | undefined;
-  for (const [b, list] of groups) {
-    const t = list.find((x) => x.id === activeId);
-    if (t) {
-      from = b;
-      active = t;
-    }
-  }
-  if (!from || !active) return [];
+  const moving = new Set(group);
+  const bucketWith = (id: string) => [...groups].find(([, list]) => list.some((t) => t.id === id))?.[0] ?? null;
 
-  let to: Bucket | null = null;
-  let overTask: TaskItem | undefined;
-  if (overId.startsWith(BUCKET_DROP_PREFIX)) {
-    to = overId.slice(BUCKET_DROP_PREFIX.length) as Bucket;
-  } else {
-    for (const [b, list] of groups) {
-      const t = list.find((x) => x.id === overId);
-      if (t) {
-        to = b;
-        overTask = t;
-      }
-    }
-  }
+  const from = bucketWith(activeId);
+  if (!from) return [];
+  const to = overId.startsWith(BUCKET_DROP_PREFIX) ? (overId.slice(BUCKET_DROP_PREFIX.length) as Bucket) : bucketWith(overId);
   if (!to || !groups.has(to)) return [];
 
-  const source = groups.get(from)!;
-  const target = groups.get(to)!.filter((t) => t.id !== activeId);
+  const single = group.length === 1;
+  const targetList = groups.get(to)!;
+  const target = targetList.filter((t) => !moving.has(t.id));
+  const place = (ordered: TaskItem[], index: number) =>
+    placeAt(ordered, group, index, (t) => t.my_tasks_position).map(({ id, position }) => ({
+      id,
+      my_tasks_bucket: to,
+      my_tasks_position: position,
+    }));
 
   if (!reorder) {
-    // Sorted by due date: only the bucket changes, the task goes to the end of the manual order.
-    if (from === to) return [];
+    // Sorted by due date: only the bucket changes; the tasks go to the end of the manual order.
+    if (single && from === to) return [];
     const manual = [...target].sort(manualOrder);
-    const last = manual[manual.length - 1];
-    return [{ id: activeId, my_tasks_bucket: to, my_tasks_position: positionBetween(last?.my_tasks_position, null) }];
+    return place(manual, manual.length);
   }
 
-  let index: number;
-  if (!overTask) {
-    index = target.length;
-  } else if (from === to) {
-    const fromIndex = source.findIndex((t) => t.id === activeId);
-    const overIndex = source.findIndex((t) => t.id === overTask.id);
-    if (fromIndex === overIndex) return [];
-    // Mirror arrayMove: moving down lands after the hovered row, moving up before it.
-    index = target.findIndex((t) => t.id === overTask.id) + (fromIndex < overIndex ? 1 : 0);
-  } else {
-    index = target.findIndex((t) => t.id === overTask.id);
+  let index = target.length;
+  if (!overId.startsWith(BUCKET_DROP_PREFIX)) {
+    const overIndex = targetList.findIndex((t) => t.id === overId);
+    // Land before the hovered row, or after it when moving down within the same bucket (like arrayMove).
+    const movingDown = from === to && targetList.findIndex((t) => t.id === activeId) < overIndex;
+    if (single && overId === activeId) return [];
+    index = targetList.slice(0, overIndex + (movingDown ? 1 : 0)).filter((t) => !moving.has(t.id)).length;
   }
 
-  const ordered = [...target];
-  ordered.splice(index, 0, active);
-  const prev = ordered[index - 1];
-  const next = ordered[index + 1];
-  const pos = positionBetween(prev?.my_tasks_position, next?.my_tasks_position);
-  const fits =
-    (!prev || prev.my_tasks_position < pos) && (!next || pos < next.my_tasks_position) && Number.isFinite(pos);
-
-  if (fits) {
-    if (from === to && pos === active.my_tasks_position) return [];
-    return [{ id: activeId, my_tasks_bucket: to, my_tasks_position: pos }];
-  }
-  // Renumber the whole bucket in its new order.
-  return ordered
-    .map((t, i) => ({ t, pos: (i + 1) * 1000 }))
-    .filter(({ t, pos: p }) => t.id === activeId || t.my_tasks_position !== p)
-    .map(({ t, pos: p }) => ({ id: t.id, my_tasks_bucket: to, my_tasks_position: p }));
+  const updates = place(target, index);
+  const active = targetList.find((t) => t.id === activeId);
+  const unchanged = single && from === to && updates.length === 1 && updates[0].my_tasks_position === active?.my_tasks_position;
+  return unchanged ? [] : updates;
 }

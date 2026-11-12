@@ -22,6 +22,41 @@ export function positionBetween(before?: number | null, after?: number | null): 
   return (before + after) / 2;
 }
 
+/**
+ * New positions for putting `ids` (in that order) at `index` of `ordered`, a list
+ * that doesn't contain them yet. They are spaced between their new neighbours when
+ * there is room; otherwise the whole list is renumbered. Returns every id whose
+ * position changes, always including `ids`.
+ */
+export function placeAt<T extends { id: string }>(
+  ordered: T[],
+  ids: string[],
+  index: number,
+  positionOf: (item: T) => number,
+): { id: string; position: number }[] {
+  const lo = index > 0 ? positionOf(ordered[index - 1]) : null;
+  const hi = index < ordered.length ? positionOf(ordered[index]) : null;
+  const n = ids.length;
+  let fitted: number[];
+  if (lo == null && hi == null) fitted = ids.map((_, i) => (i + 1) * 1000);
+  else if (hi == null) fitted = ids.map((_, i) => (lo as number) + (i + 1) * 1000);
+  else if (lo == null) fitted = ids.map((_, i) => hi - (n - i) * 1000);
+  else fitted = ids.map((_, i) => lo + ((hi - lo) * (i + 1)) / (n + 1));
+  const fits =
+    fitted.every(Number.isFinite) &&
+    fitted.every((p, i) => (i === 0 ? lo == null || lo < p : fitted[i - 1] < p)) &&
+    (hi == null || fitted[n - 1] < hi);
+  if (fits) return ids.map((id, i) => ({ id, position: fitted[i] }));
+
+  // No room (neighbours share a position): renumber everything in the new order.
+  const moving = new Set(ids);
+  const full = [...ordered.slice(0, index).map((t) => t.id), ...ids, ...ordered.slice(index).map((t) => t.id)];
+  const current = new Map(ordered.map((t) => [t.id, positionOf(t)]));
+  return full
+    .map((id, i) => ({ id, position: (i + 1) * 1000 }))
+    .filter(({ id, position }) => moving.has(id) || current.get(id) !== position);
+}
+
 /** Position for appending after a list of items with `position`. */
 export function nextPosition(items: { position: number }[]): number {
   return items.length ? Math.max(...items.map((i) => i.position)) + 1000 : 1000;

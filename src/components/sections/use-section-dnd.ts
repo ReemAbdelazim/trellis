@@ -23,7 +23,7 @@ import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { sectionTasksKey, useUpdateSection, type SectionOwner } from "@/lib/queries/sections";
 import { patchTaskInCaches, useUpdateTask, type TaskItem } from "@/lib/queries/tasks";
 import { toast } from "sonner";
-import { errorMessage, nextPosition, positionBetween } from "@/lib/utils";
+import { errorMessage, placeAt, positionBetween } from "@/lib/utils";
 import type { Section } from "@/types/models";
 
 // ---------------------------------------------------------------------------
@@ -81,7 +81,8 @@ interface Override {
 /**
  * Shared drag-and-drop state for tasks grouped by section with sortable
  * sections: project list rows and board cards, and a task's subtasks (which
- * may also use the NO_SECTION group). Moves are optimistic: the dropped order
+ * may also use the NO_SECTION group). Dragging one of several selected tasks
+ * moves them all, in display order. Moves are optimistic: the dropped order
  * is held locally until the query cache reflects it, so nothing snaps back.
  */
 export function useSectionDnd({
@@ -91,6 +92,7 @@ export function useSectionDnd({
   tasksById,
   allBySection,
   manual,
+  dragGroup = (id) => [id],
 }: {
   owner: SectionOwner;
   sections: Section[];
@@ -101,6 +103,8 @@ export function useSectionDnd({
   allBySection: Map<string, TaskItem[]>;
   /** Manual ordering: drops set positions. When sorted, drops only change the section. */
   manual: boolean;
+  /** The tasks a drag of `id` moves (e.g. the multi-selection); just `id` by default. */
+  dragGroup?: (id: string) => string[];
 }) {
   const qc = useQueryClient();
   const updateTask = useUpdateTask();
@@ -238,38 +242,33 @@ export function useSectionDnd({
     if (target.type === "task" && target.id !== dragged.id && list.includes(target.id)) {
       list = arrayMove(list, list.indexOf(dragged.id), list.indexOf(target.id));
     }
+    const group = dragGroup(dragged.id);
+    const moving = new Set(group);
+    const single = group.length === 1;
+    if (single && container === original && (!manual || sameOrder(list, groups[container]))) return setOverride(null);
 
-    if (!manual) {
-      // Sorted views: only a section change means anything.
-      if (container === original) return setOverride(null);
-      settle({ tasks: { ...state.tasks, [container]: list } });
-      const others = (allBySection.get(container) ?? []).filter((t) => t.id !== dragged.id);
-      moveTask(dragged.id, container, nextPosition(others));
-      return;
-    }
+    // Show the result straight away: the group lands where the dragged task was dropped.
+    const rest = list.filter((id) => !moving.has(id));
+    const at = list.slice(0, list.indexOf(dragged.id)).filter((id) => !moving.has(id)).length;
+    const shown: Groups = {};
+    for (const [key, ids] of Object.entries(state.tasks)) shown[key] = ids.filter((id) => !moving.has(id));
+    shown[container] = [...rest.slice(0, at), ...group, ...rest.slice(at)];
+    settle({ tasks: shown });
 
-    if (container === original && sameOrder(list, groups[container])) return setOverride(null);
-    settle({ tasks: { ...state.tasks, [container]: list } });
-    const index = list.indexOf(dragged.id);
-    const prev = tasksById.get(list[index - 1]);
-    const next = tasksById.get(list[index + 1]);
-    const position = positionBetween(prev?.position, next?.position);
-    if (prev && next && !(prev.position < position && position < next.position)) {
-      // Positions collided (equal neighbours). Renumber the whole section, including
-      // tasks hidden by the current filter, so their order is preserved too.
-      const full = (allBySection.get(container) ?? [])
-        .filter((t) => t.id !== dragged.id)
-        .sort((x, y) => x.position - y.position)
-        .map((t) => t.id);
-      full.splice(full.indexOf(prev.id) + 1, 0, dragged.id);
-      full.forEach((id, i) => {
-        const t = tasksById.get(id) ?? (allBySection.get(container) ?? []).find((x) => x.id === id);
-        const p = (i + 1) * 1000;
-        if (t && (t.position !== p || id === dragged.id)) moveTask(id, container, p);
-      });
-      return;
+    // Place against every task in the section, including ones hidden by filters,
+    // so their order is kept: sorted views append; manual views go after the
+    // visible task before the drop (or before the one after it).
+    const full = (allBySection.get(container) ?? [])
+      .filter((t) => !moving.has(t.id))
+      .sort((x, y) => x.position - y.position);
+    let index = full.length;
+    if (manual) {
+      const before = rest[at - 1];
+      const after = rest[at];
+      if (before) index = full.findIndex((t) => t.id === before) + 1;
+      else if (after) index = full.findIndex((t) => t.id === after);
     }
-    moveTask(dragged.id, container, position);
+    for (const { id, position } of placeAt(full, group, index, (t) => t.position)) moveTask(id, container, position);
   };
 
   const onDragCancel = () => {
@@ -293,6 +292,8 @@ export function useSectionDnd({
     /** Section ids in display order. */
     order,
     activeTask: active?.type === "task" ? (tasksById.get(active.id) ?? null) : null,
+    /** How many tasks the current drag moves (the selection, when it includes the dragged task). */
+    activeCount: active?.type === "task" ? dragGroup(active.id).length : 0,
     activeSection: active?.type === "section" ? (sections.find((s) => s.id === active.id) ?? null) : null,
   };
 }
