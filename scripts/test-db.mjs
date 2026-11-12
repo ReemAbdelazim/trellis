@@ -175,10 +175,19 @@ check("assignee can add subtask", !subErr, subErr?.message);
 const { data: subRow } = await cm1.from("tasks").select("project_id, section_id").eq("id", sub).single();
 check("subtask inherits project, no section", subRow?.project_id === priv.id && subRow?.section_id === null);
 
-const { error: cErr } = await cm1.from("comments").insert({ task_id: t1, body: "Hi @guest", mentions: [g.user.id], author_id: await uid(cm1) });
-check("comment with mention", !cErr, cErr?.message);
+const { data: c1, error: cErr } = await cm1
+  .from("comments")
+  .insert({ task_id: t1, body: `Hi @[Guest](${g.user.id})`, author_id: await uid(cm1) })
+  .select("id, mentions")
+  .single();
+check("comment with mention", !cErr && c1?.mentions?.[0] === g.user.id, cErr?.message ?? c1);
 const { data: mentioned } = await cg.from("notifications").select("type").eq("task_id", t1).eq("type", "mentioned");
 check("mention notification", mentioned?.length === 1);
+const { data: audience } = await cm1.rpc("task_audience", { p_task: t1 });
+check("task audience lists who can see the task", audience?.includes(g.user.id) && audience?.includes(await uid(cm1)), audience);
+check("…and not who can't", !audience?.includes(await uid(cm2)));
+const { data: outsiderAudience } = await cm2.rpc("task_audience", { p_task: t1 });
+check("…and tells nothing to someone who can't see it", outsiderAudience?.length === 0, outsiderAudience);
 const { error: m2Comment } = await cm2.from("comments").insert({ task_id: t1, body: "sneaky", author_id: await uid(cm2) });
 check("non-viewer cannot comment", !!m2Comment);
 
@@ -386,12 +395,26 @@ check("helpers can't be asked about other people", !!oracle);
 const { data: ownAccess } = await cm2.rpc("project_access", { p_project: pub.id });
 check("…but answer for yourself", ownAccess === "editor", ownAccess);
 
-const { error: bigMentions } = await cm1.from("comments").insert({ task_id: t1, author_id: m1id, body: "spam", mentions: Array(200).fill(g.user.id) });
-check("huge mention lists are rejected", !!bigMentions);
-const { count: beforeN } = await admin.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", g.user.id).eq("type", "mentioned");
-await cm1.from("comments").insert({ task_id: t1, author_id: m1id, body: "dup", mentions: Array(30).fill(g.user.id) });
-const { count: afterN } = await admin.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", g.user.id).eq("type", "mentioned");
-check("duplicate mentions notify once", afterN - beforeN === 1, afterN - beforeN);
+const mentionCount = async (user) =>
+  (await admin.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user).eq("type", "mentioned")).count;
+const { data: spoofed } = await cm1.from("comments").insert({ task_id: t1, author_id: m1id, body: "no tokens here", mentions: [g.user.id] }).select("mentions").single();
+check("mentions come from the text, not the request", spoofed?.mentions?.length === 0, spoofed);
+const beforeN = await mentionCount(g.user.id);
+const { data: dupC } = await cm1
+  .from("comments")
+  .insert({ task_id: t1, author_id: m1id, body: Array(30).fill(`@[Guest](${g.user.id})`).join(" ") })
+  .select("id")
+  .single();
+check("duplicate mentions notify once", (await mentionCount(g.user.id)) - beforeN === 1);
+const adminId = await uid(ca);
+const beforeEdit = { guest: await mentionCount(g.user.id), admin: await mentionCount(adminId) };
+await cm1.from("comments").update({ body: `@[Guest](${g.user.id}) and @[Admin](${adminId})` }).eq("id", dupC.id);
+check(
+  "editing a comment notifies only the newly mentioned",
+  (await mentionCount(adminId)) - beforeEdit.admin === 1 && (await mentionCount(g.user.id)) === beforeEdit.guest,
+);
+await cm1.from("comments").update({ body: `@[Guest](${g.user.id}) and @[Admin](${adminId}) (typo fixed)` }).eq("id", dupC.id);
+check("…and re-saving doesn't notify again", (await mentionCount(adminId)) - beforeEdit.admin === 1);
 
 const tooMany = Array(12).fill({ type: "set_complete", value: true });
 const { error: bigRule } = await cm1.from("rules").insert({ project_id: pub.id, name: "big", trigger_type: "task_added", actions: tooMany });

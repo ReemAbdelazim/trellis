@@ -259,7 +259,7 @@ function readDeviceZone() {
 
 /** Matches the kinds read by supabase/functions/notifications. */
 const EMAIL_KINDS = [
-  { key: "mentions", title: "Mentions", description: "Someone @mentions you in a comment or description." },
+  { key: "mentions", title: "Mentions", description: "Someone @mentions you in a comment." },
   { key: "assigned", title: "Assignments", description: "Someone assigns you a task." },
   { key: "comments", title: "Comments", description: "New comments on tasks you follow. One email thread per task." },
   { key: "daily", title: "Daily update", description: "Tasks due soon or overdue, around 8am." },

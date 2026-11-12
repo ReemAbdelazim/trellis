@@ -25,7 +25,8 @@ export function useComments(taskId: string) {
 export function useAddComment(taskId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { body: string; mentions: string[]; author_id: string }) => {
+    // Mentions are read from the @[Name](id) tokens in the body by the database.
+    mutationFn: async (input: { body: string; author_id: string }) => {
       const { data, error } = await supabase()
         .from("comments")
         .insert({ task_id: taskId, ...input })
@@ -84,6 +85,19 @@ export function useActivity(taskId: string) {
       if (error) throw error;
       return data;
     },
+  });
+}
+
+/** Ids of everyone who can see a task, i.e. who a comment on it can mention. */
+export function useTaskAudience(taskId: string) {
+  return useQuery({
+    queryKey: qk.taskAudience(taskId),
+    queryFn: async (): Promise<Set<string>> => {
+      const { data, error } = await supabase().rpc("task_audience", { p_task: taskId });
+      if (error) throw error;
+      return new Set(data);
+    },
+    staleTime: 60_000,
   });
 }
 

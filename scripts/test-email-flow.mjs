@@ -149,7 +149,6 @@ await jordan.from("comments").insert({
   task_id: task.id,
   author_id: ids.jordan,
   body: `@[Sam Rivera](${ids.sam}) @[Priya Patel](${ids.priya}) can you two check the quotes?`,
-  mentions: [ids.sam, ids.priya],
 });
 await jordan.from("tasks").update({ assignee_id: ids.sam }).eq("id", task.id);
 let result;
@@ -170,7 +169,7 @@ check("plain-text version links the task", !!toSam[0]?.text.includes(`${APP_URL}
 check("email starts a thread for the task", toSam[0]?.references === `<task-${task.id}@trellis.app>` && toSam[0].inReplyTo === toSam[0].references, toSam[0]?.references);
 
 console.log("\nThreading");
-await jordan.from("comments").insert({ task_id: task.id, author_id: ids.jordan, body: "Venue B has parking.", mentions: [] });
+await jordan.from("comments").insert({ task_id: task.id, author_id: ids.jordan, body: "Venue B has parking." });
 const second = (await capture(() => tick("activity"))).filter((m) => m.to === "sam@seedsofleadership.ca");
 check("a follow-up comment sends one more email", second.length === 1, second.map((m) => m.subject));
 check("same subject as the first email", second[0]?.subject === toSam[0]?.subject);
@@ -180,16 +179,16 @@ check("recent comments include the earlier one", !!second[0]?.html.includes("Rec
 
 console.log("\nEmail preferences");
 await admin.from("profiles").update({ email_prefs: { comments: false } }).eq("id", ids.sam);
-await jordan.from("comments").insert({ task_id: task.id, author_id: ids.jordan, body: "Booking venue B.", mentions: [] });
+await jordan.from("comments").insert({ task_id: task.id, author_id: ids.jordan, body: "Booking venue B." });
 const optedOut = await capture(() => tick("activity"));
 check("comments switched off: no comment email", !optedOut.some((m) => m.to === "sam@seedsofleadership.ca"), optedOut.map((m) => m.to));
 check("other followers still get it", optedOut.some((m) => m.to === "priya@seedsofleadership.ca"));
-await jordan.from("comments").insert({ task_id: task.id, author_id: ids.jordan, body: `@[Sam Rivera](${ids.sam}) final check?`, mentions: [ids.sam] });
+await jordan.from("comments").insert({ task_id: task.id, author_id: ids.jordan, body: `@[Sam Rivera](${ids.sam}) final check?` });
 const mentionStill = await capture(() => tick("activity"));
 check("mentions still arrive with comments off", mentionStill.some((m) => m.to === "sam@seedsofleadership.ca"));
 await admin.from("profiles").update({ email_prefs: {} }).eq("id", ids.sam);
 
-await sam.from("comments").insert({ task_id: task.id, author_id: ids.sam, body: "Read already", mentions: [] });
+await sam.from("comments").insert({ task_id: task.id, author_id: ids.sam, body: "Read already" });
 await admin.from("notifications").update({ read_at: new Date().toISOString() }).eq("user_id", ids.priya).is("read_at", null);
 const readFirst = await capture(() => tick("activity"));
 check("items already read in the app are not emailed", !readFirst.some((m) => m.to === "priya@seedsofleadership.ca"), readFirst.map((m) => m.to));

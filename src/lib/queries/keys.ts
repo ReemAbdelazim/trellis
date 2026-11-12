@@ -37,6 +37,7 @@ export const qk = {
   activity: (taskId: string) => ["activity", taskId] as const,
   attachments: (taskId: string) => ["attachments", taskId] as const,
   followers: (taskId: string) => ["followers", taskId] as const,
+  taskAudience: (taskId: string) => ["task-audience", taskId] as const,
   dependencies: (taskId: string) => ["dependencies", taskId] as const,
   projectDependencies: (projectId: string) => ["project-dependencies", projectId] as const,
   allProjectDependencies: ["project-dependencies"] as const,

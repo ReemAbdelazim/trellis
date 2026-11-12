@@ -7,10 +7,6 @@ import { useProfileMap } from "@/lib/queries/people";
 const MENTION_RE = /@\[([^\]]+)\]\(([0-9a-f-]{36})\)/g;
 const URL_RE = /(https?:\/\/[^\s<>()]+[^\s<>().,;:!?'")\]])/g;
 
-export function extractMentions(body: string): string[] {
-  return [...new Set([...body.matchAll(MENTION_RE)].map((m) => m[2]))];
-}
-
 function Linkified({ text }: { text: string }) {
   const parts = text.split(URL_RE);
   return (

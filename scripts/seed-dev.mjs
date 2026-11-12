@@ -111,7 +111,6 @@ await c.from("comments").insert({
   task_id: venue.id,
   author_id: aya,
   body: `@[Jordan Lee](${jordan}) can you get quotes by Friday?`,
-  mentions: [jordan],
 });
 
 const { data: tags } = await c

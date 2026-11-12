@@ -854,6 +854,9 @@ isOneToOne: false
               "completed_tasks": number,"last_activity_at": string,"overdue_tasks": number,"project_id": string,"total_tasks": number
             }[]
                            },
+"task_audience":
+{ Args: { "p_task": string }; Returns: string[]
+                           },
 "try_uuid":
 { Args: { "p": string }; Returns: string
                            }

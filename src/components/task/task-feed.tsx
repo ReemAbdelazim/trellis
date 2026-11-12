@@ -11,7 +11,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/ui/menu";
 import { formatDue, timeAgo } from "@/lib/utils";
-import { extractMentions, RichText } from "./rich-text";
+import { RichText } from "./rich-text";
 import { MentionInput, type MentionInputHandle } from "./mention-input";
 import type { Comment, Profile, TaskActivity } from "@/types/models";
 
@@ -148,7 +148,7 @@ function CommentItem({ taskId, comment, mine, isAdmin }: { taskId: string; comme
         </div>
         {editing ? (
           <div className="mt-1 space-y-2">
-            <MentionInput value={draft} onChange={setDraft} />
+            <MentionInput taskId={taskId} value={draft} onChange={setDraft} />
             <div className="flex gap-2">
               <Button
                 size="xs"
@@ -181,14 +181,14 @@ function Composer({ taskId }: { taskId: string }) {
   const submit = () => {
     const text = body.trim();
     if (!text) return;
-    add.mutate({ body: text, mentions: extractMentions(text), author_id: me.id });
+    add.mutate({ body: text, author_id: me.id });
     setBody("");
   };
   return (
     <div className="mt-4 flex gap-2.5">
       <Avatar profile={me} size="md" />
       <div className="flex-1">
-        <MentionInput ref={input} value={body} onChange={setBody} onSubmit={submit} placeholder="Add a comment… use @ to mention" />
+        <MentionInput ref={input} taskId={taskId} value={body} onChange={setBody} onSubmit={submit} placeholder="Add a comment… use @ to mention" />
         {body.trim() && (
           <div className="mt-2 flex items-center gap-2">
             <Button size="sm" variant="primary" onClick={submit} disabled={add.isPending}>
